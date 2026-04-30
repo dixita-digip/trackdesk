@@ -20,16 +20,24 @@ const rawCorsOrigins = String(process.env.CORS_ORIGIN || '').trim()
 const allowedOrigins = rawCorsOrigins
   ? rawCorsOrigins.split(',').map((item) => item.trim()).filter(Boolean)
   : ['http://localhost:5173', 'http://127.0.0.1:5173']
+const allowAllOrigins = allowedOrigins.includes('*')
+
+function normalizeOrigin(value) {
+  return String(value || '').trim().replace(/\/+$/, '')
+}
 
 function isOriginAllowed(origin) {
+  if (allowAllOrigins) return true
+  const normalizedOrigin = normalizeOrigin(origin)
   return allowedOrigins.some((rule) => {
     if (!rule) return false
-    if (rule === origin) return true
-    if (!rule.includes('*')) return false
+    const normalizedRule = normalizeOrigin(rule)
+    if (normalizedRule === normalizedOrigin) return true
+    if (!normalizedRule.includes('*')) return false
     // Simple wildcard support: https://*.vercel.app
-    const escaped = rule.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')
+    const escaped = normalizedRule.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')
     const regex = new RegExp(`^${escaped}$`)
-    return regex.test(origin)
+    return regex.test(normalizedOrigin)
   })
 }
 
