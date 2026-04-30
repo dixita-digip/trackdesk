@@ -1,0 +1,133 @@
+/* Common styles for module pages (Projects/Tasks/Employees/Reports) */
+
+.modulePageCard {
+  border-radius: 14px !important;
+  border: 1px solid rgba(124, 58, 237, 0.07) !important;
+  box-shadow: var(--shadow-xs) !important;
+  background: #fff !important;
+}
+
+.moduleCardContent {
+  padding: 0 !important;
+}
+
+.moduleHeader {
+  padding: 16px 20px 12px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.moduleTitle {
+  font-weight: 800;
+  font-size: 0.9375rem;
+  color: #1e1b4b;
+}
+
+.moduleSubtitle {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  margin-top: 3px;
+}
+
+.moduleNewProjectBtn {
+  text-transform: none !important;
+  border-radius: 16px !important;
+  background: #7c3aed !important;
+}
+
+.moduleNewProjectBtn:hover {
+  background: #6d28d9 !important;
+}
+
+.moduleTableHeaderCell {
+  font-weight: 800 !important;
+  color: #64748b !important;
+  font-size: 0.65rem !important;
+}
+
+.moduleTableActionCell {
+  white-space: nowrap;
+}
+
+.moduleActionBtnEdit {
+  color: #7c3aed !important;
+  text-transform: none !important;
+  font-weight: 800 !important;
+}
+
+.moduleActionBtnDelete {
+  color: #ef4444 !important;
+  text-transform: none !important;
+  font-weight: 800 !important;
+}
+
+.moduleChipCapitalize .MuiChip-label {
+  text-transform: capitalize;
+}
+
+.moduleCellCapitalize {
+  text-transform: capitalize;
+}
+
+.moduleEmptyOuter {
+  padding: 24px 20px;
+}
+
+.moduleEmptyBoxInner {
+  border-radius: 12px;
+  border: 1px dashed rgba(124, 58, 237, 0.28);
+  background: rgba(124, 58, 237, 0.03);
+  padding: 20px;
+  text-align: center;
+}
+
+.moduleEmptyTitle {
+  font-weight: 700;
+  color: #1e1b4b;
+  font-size: 0.875rem;
+}
+
+.moduleEmptySub {
+  margin-top: 7px;
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.moduleEmptyCta {
+  color: #7c3aed;
+  font-weight: 800;
+}
+
+.moduleReportsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 600px) {
+  .moduleReportsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.moduleReportCard {
+  border-radius: 12px !important;
+  border: 1px solid rgba(124, 58, 237, 0.07) !important;
+  box-shadow: var(--shadow-xs) !important;
+}
+
+.moduleReportKey {
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.moduleReportValue {
+  margin-top: 8px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1e1b4b;
+}
+

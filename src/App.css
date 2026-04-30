@@ -1,0 +1,6 @@
+/* App.css — All component-level styles are handled via MUI sx props in App.jsx */
+/* Global utility overrides only */
+
+.MuiDrawer-paper {
+  scrollbar-width: thin;
+}

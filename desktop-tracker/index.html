@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TrackDesk Tracker</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-window">
+      <section id="loginScreen" class="login-screen">
+        <section id="entranceScreen" class="entrance-screen">
+          <div class="login-art">
+            <img src="./login-illustration.png" alt="TrackDesk Tracker" />
+          </div>
+          <h1>Welcome to TrackDesk Tracker</h1>
+          <p>Track time on tasks, sync activity to your dashboard, and stay productive throughout the day.</p>
+          <ul class="landing-points">
+            <li>Real-time timer for projects & tasks</li>
+            <li>Automatic sync to TrackDesk web dashboard</li>
+            <li>Secure sign-in with your organization account</li>
+          </ul>
+          <button id="openLoginBtn" type="button" class="auth-btn">Login</button>
+          <div class="landing-note">Sign in using the same TrackDesk website email and password.</div>
+        </section>
+
+        <section id="loginFormScreen" class="login-form-screen hidden">
+          <div class="login-art">
+            <img src="./login-illustration.png" alt="TrackDesk Tracker" />
+          </div>
+          <h1>TrackDesk Tracker Login</h1>
+          <p>Sign in using the same website email and password.</p>
+          <label>
+            Email
+            <input id="authEmail" type="email" placeholder="Email" />
+          </label>
+          <label>
+            Password
+            <input id="authPassword" type="password" placeholder="Password" />
+          </label>
+          <button id="loginBtn" type="button" class="auth-btn">Login</button>
+          <button id="backToEntranceBtn" type="button" class="ghost-btn">Back</button>
+        </section>
+      </section>
+
+      <section id="trackerContent" class="tracker-content hidden">
+        <section class="tracker-header">
+          <div id="authState" class="auth-state">Not logged in</div>
+          <div class="header-actions">
+            <button id="headerLoginBtn" type="button" class="header-btn">Login</button>
+            <button id="logoutBtn" type="button" class="header-btn logout">Logout</button>
+          </div>
+        </section>
+
+        <section class="tracker-hero">
+          <img src="./login-illustration.png" alt="Tracker workspace" />
+        </section>
+
+      <section class="timer-panel">
+        <div id="timerValue" class="timer-value">00:00:00</div>
+        <h2 id="currentProjectTitle" class="project-title">Select a Task</h2>
+        <button id="startBtn" class="play-btn" title="Start timer">▶</button>
+        <div class="timer-meta">
+          <span>Multiple limits</span>
+          <span id="todayTime">Today: 0:00</span>
+        </div>
+      </section>
+
+      <section class="search-row">
+        <span class="search-icon">⌕</span>
+        <input id="projectSearch" type="text" placeholder="Search projects" />
+      </section>
+
+      <section class="selector-row">
+        <label>
+          Select Project
+          <select id="projectSelect">
+            <option value="">Select project</option>
+          </select>
+        </label>
+        <label>
+          Select Task
+          <select id="taskSelect">
+            <option value="">Select project first</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="list-header">
+        <strong id="orgTitle">Organization Tasks</strong>
+        <button class="plus-btn" type="button">+</button>
+      </section>
+
+      <section id="projectList" class="project-list">
+        <button class="project-item active" type="button" data-project="Dixita's Organization's Project" data-task-id="1" data-task-title="Sample Task">
+          <span class="dot">▶</span>
+          <span class="name">Sample Task</span>
+          <span class="time">Dixita's Organization's Project</span>
+        </button>
+        <button class="project-item" type="button" data-project="Project Management">
+          <span class="dot ghost"></span>
+          <span class="name">Project Management</span>
+          <span class="time">0:00</span>
+        </button>
+      </section>
+
+      <p id="status" class="status">Ready</p>
+
+      <footer class="footer-text">
+        <span class="footer-center">Last updated: <span id="lastUpdated">--:--</span></span>
+      </footer>
+
+      <section id="settingsPanel" class="settings-panel hidden">
+        <h3>Desktop Sync Settings</h3>
+        <label>
+          API Base URL
+          <input id="apiBase" type="text" placeholder="http://localhost:5000/api" />
+        </label>
+        <div class="hidden-auto-fields" aria-hidden="true">
+          <input id="userId" type="text" placeholder="emp-001" readonly />
+          <input id="userName" type="text" placeholder="Employee Name" readonly />
+          <input id="projectName" type="text" placeholder="Project name" readonly />
+          <input id="taskId" type="number" placeholder="Task id" readonly />
+          <input id="taskTitle" type="text" placeholder="Task title" readonly />
+        </div>
+        <button id="stopBtn" class="sync-btn" disabled>Stop & Sync</button>
+      </section>
+      </section>
+    </main>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

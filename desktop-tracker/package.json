@@ -1,0 +1,31 @@
+{
+  "name": "trackdesk-tracker",
+  "version": "1.0.0",
+  "description": "Desktop time tracker app for TrackDesk",
+  "main": "main.js",
+  "author": "TrackDesk",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.trackdesk.tracker",
+    "productName": "TrackDesk Tracker",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^37.2.4",
+    "electron-builder": "^26.0.12"
+  }
+}
