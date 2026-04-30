@@ -49,17 +49,24 @@ function isOriginAllowed(origin) {
   })
 }
 
-app.use(cors({
-  origin(origin, callback) {
-    // Allow non-browser or same-origin requests with no Origin header.
-    if (!origin) return callback(null, true)
-    if (!strictCors) return callback(null, true)
-    if (isOriginAllowed(origin)) return callback(null, true)
-    return callback(new Error(`CORS blocked for origin: ${origin}`))
-  },
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}))
+// app.use(cors({
+//   origin(origin, callback) {
+//     // Allow non-browser or same-origin requests with no Origin header.
+//     if (!origin) return callback(null, true)
+//     if (!strictCors) return callback(null, true)
+//     if (isOriginAllowed(origin)) return callback(null, true)
+//     return callback(new Error(`CORS blocked for origin: ${origin}`))
+//   },
+//   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization'],
+// }))
+
+app.use(
+  cors({
+    origin: "https://trackdesk.vercel.app",
+    credentials: true, // if using cookies/auth
+  })
+);
 app.use(express.json())
 
 const { createSupabaseClient, loadAppState, createSaveDb } = require('./db-supabase')
