@@ -58,9 +58,6 @@ app.use(
   })
 );
 
-// 🔥 Add this line (VERY IMPORTANT)
-app.options("*", cors());
-
 const { createSupabaseClient, loadAppState, createSaveDb } = require('./db-supabase')
 
 let systems = []
