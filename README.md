@@ -1,36 +1,158 @@
-# React + Vite
+# TrackDesk
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+TrackDesk is a modern work management and time-tracking platform designed for engineering and operations teams.  
+It combines project execution visibility, task lifecycle management, employee accountability, and desktop-based time capture in one unified system.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Overview
 
-## React Compiler
+TrackDesk includes three integrated applications:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Web Application** (`React + Vite`) for day-to-day operations and reporting
+- **Backend API** (`Node.js + Express`) for business logic and persistence
+- **Desktop Tracker** (`Electron`, Windows) for accurate timer-based work logging
 
-## Expanding the ESLint configuration
+This architecture supports both centralized management and practical employee workflows.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+---
 
-## Quick Time Tracker Desktop App
-The "Quick Time Tracker" is integrated with this system and available as a downloadable desktop application.
+## Core Capabilities
 
-### Features
-- Native Windows Desktop application.
-- Real-time sync with the central Task & Project management system.
-- Persistent timer that runs in the background.
+### Work Management
+- End-to-end management for **Systems**, **Projects**, **Tasks**, and **Employees**
+- Role-aware experience for **Admin**, **Manager**, and **Employee**
+- Structured task lifecycle with status progression and assignment controls
 
-### Download & Installation
-1. Click the **"Download Desktop App"** button in the sidebar or the header of the Quick Tracker page.
-2. Download the `QuickTracker-Windows.zip` file.
-3. Extract the ZIP file to your preferred location.
-4. Run `QuickTracker.exe` to start tracking your time.
+### Time Tracking
+- Desktop timer start/stop synced to central API
+- Session-based tracking linked to projects and tasks
+- Automatic task time aggregation for productivity insights
 
-### Development & Building
-To build a new version of the tracker:
-1. Navigate to the `quick-time-tracker` directory.
-2. Run `npm run build`.
-3. Package the version using `electron-builder` or zip the `dist_electron/win-unpacked` folder.
+### Reporting & Visibility
+- Management dashboards with progress indicators
+- Timesheet and summary report generation
+- CSV export support for downstream analysis
+
+### Notifications & Activity
+- In-app notification center
+- Bulk actions (mark read / delete)
+- Activity logging for major system events
+
+### Security & Access
+- Login and password-change workflows
+- First-login password reset support
+- Sensitive server credentials handled through environment configuration
+
+---
+
+## Technology Stack
+
+- **Frontend:** React, Vite, MUI
+- **Backend:** Node.js, Express
+- **Database/Persistence:** Supabase
+- **Desktop App:** Electron + electron-builder
+- **Email (optional):** SMTP (e.g., SendGrid)
+
+---
+
+## API Highlights
+
+Base path: `/api`
+
+### Tracker endpoints
+- `POST /tracker/timer/start`
+- `POST /tracker/timer/stop`
+- `POST /tracker/sessions`
+- `GET /tracker/sessions`
+- `GET /tracker/download` (serves latest `.exe`/`.msi` installer)
+
+Installer download source (latest file wins):
+- `server/downloads`
+- `desktop-tracker/dist`
+
+---
+
+## Project Structure
+
+- `src/` - Web client
+- `server/` - API server
+- `desktop-tracker/` - Windows desktop tracker
+
+---
+
+## Environment Configuration
+
+1. Copy `.env.example` to `.env`
+2. Configure required values:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+3. Configure optional settings as needed:
+   - SMTP values (`SMTP_*`) for employee onboarding emails
+   - Admin defaults (`ADMIN_*`)
+   - App login URL (`APP_LOGIN_URL`)
+
+Reference file:
+- `server/env.example` (minimal server-side environment template)
+
+---
+
+## Local Development
+
+### Install dependencies
+
+```bash
+npm install
+npm install --prefix server
+npm install --prefix desktop-tracker
+```
+
+### Start web app + API
+
+```bash
+npm run dev
+```
+
+- Web: `http://localhost:5173`
+- API: `http://localhost:5000`
+
+### Run desktop tracker (development)
+
+```bash
+npm start --prefix desktop-tracker
+```
+
+Default desktop API base URL: `http://localhost:5000/api`
+
+---
+
+## Build & Distribution (Desktop Tracker)
+
+Build Windows installer:
+
+```bash
+npm run build:win --prefix desktop-tracker
+```
+
+Build output directory:
+- `desktop-tracker/dist`
+
+For web download integration, keep installer files (`.exe`/`.msi`) in either:
+- `desktop-tracker/dist` or
+- `server/downloads`
+
+The endpoint `GET /api/tracker/download` automatically serves the latest installer.
+
+---
+
+## Delivery Notes
+
+- Do not commit large installer archives/binaries directly to GitHub if they exceed 100 MB.
+- Publish release artifacts externally or use Git LFS where binary versioning is required.
+- Keep `.env` out of version control; commit only `.env.example`.
+
+---
+
+## License
+
+MIT (update if your organization requires a different license model).
