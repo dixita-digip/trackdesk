@@ -73,6 +73,7 @@ import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import {
+  API_BASE_URL,
   deleteNotifications,
   getEmployees,
   getNotifications,
@@ -2166,7 +2167,7 @@ function App() {
 
   async function handleDownloadTracker() {
     try {
-      const response = await fetch('/api/tracker/download')
+      const response = await fetch(`${API_BASE_URL}/tracker/download`)
       if (!response.ok) {
         let message = 'Failed to download tracker app'
         try {
