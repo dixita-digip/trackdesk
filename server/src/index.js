@@ -8,6 +8,7 @@ const cors = require('cors')
 const fs = require('fs')
 const crypto = require('crypto')
 const nodemailer = require('nodemailer')
+const jwt = require('jsonwebtoken')
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -405,6 +406,28 @@ async function sendEmployeeWelcomeEmail({ toEmail, fullName, role, tempPassword 
 const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@system.local'
 let adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
 const DEFAULT_ADMIN_NAME = process.env.ADMIN_NAME || 'System Admin'
+const JWT_SECRET = String(process.env.JWT_SECRET || 'dev-only-change-me')
+const JWT_EXPIRES_IN = String(process.env.JWT_EXPIRES_IN || '7d')
+
+function createAuthToken(payload) {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
+}
+
+function requireBearerAuth(req, res, next) {
+  const header = String(req.headers.authorization || '')
+  if (!header.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Missing bearer token' })
+  }
+  const token = header.slice('Bearer '.length).trim()
+  if (!token) return res.status(401).json({ message: 'Missing bearer token' })
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET)
+    req.auth = decoded
+    return next()
+  } catch {
+    return res.status(401).json({ message: 'Invalid or expired token' })
+  }
+}
 
 app.post('/api/auth/login', (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase()
@@ -413,7 +436,14 @@ app.post('/api/auth/login', (req, res) => {
 
   if (email === String(DEFAULT_ADMIN_EMAIL).trim().toLowerCase()) {
     if (password !== adminPassword) return res.status(401).json({ message: 'Invalid credentials' })
+    const token = createAuthToken({
+      sub: 'admin',
+      email: DEFAULT_ADMIN_EMAIL,
+      role: 'Admin',
+      displayName: DEFAULT_ADMIN_NAME,
+    })
     return res.json({
+      token,
       role: 'Admin',
       displayName: DEFAULT_ADMIN_NAME,
       email: DEFAULT_ADMIN_EMAIL,
@@ -428,7 +458,14 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ message: 'Invalid credentials' })
   }
 
+  const token = createAuthToken({
+    sub: String(employee.id),
+    email: employee.email,
+    role: employee.role || 'Employee',
+    displayName: employee.name,
+  })
   return res.json({
+    token,
     role: employee.role || 'Employee',
     displayName: employee.name,
     email: employee.email,
@@ -437,8 +474,9 @@ app.post('/api/auth/login', (req, res) => {
   })
 })
 
-app.post('/api/auth/change-password', async (req, res) => {
-  const email = String(req.body?.email || '').trim().toLowerCase()
+app.post('/api/auth/change-password', requireBearerAuth, async (req, res) => {
+  const tokenEmail = String(req.auth?.email || '').trim().toLowerCase()
+  const email = tokenEmail || String(req.body?.email || '').trim().toLowerCase()
   const currentPassword = String(req.body?.currentPassword || '')
   const nextPassword = String(req.body?.newPassword || '')
 
@@ -485,6 +523,11 @@ app.post('/api/auth/change-password', async (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
+})
+
+app.use('/api', (req, res, next) => {
+  if (req.path === '/auth/login' || req.path === '/health') return next()
+  return requireBearerAuth(req, res, next)
 })
 
 app.get('/api/tracker/download', (req, res) => {

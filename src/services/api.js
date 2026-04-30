@@ -2,11 +2,31 @@ import axios from 'axios'
 
 const rawApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
 export const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, '')
+const AUTH_STORAGE_KEY = 'trackdesk-auth'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  withCredentials: true,
+  baseURL: API_BASE_URL,
 })
+
+export function setAuthToken(token) {
+  const normalized = String(token || '').trim()
+  if (normalized) api.defaults.headers.common.Authorization = `Bearer ${normalized}`
+  else delete api.defaults.headers.common.Authorization
+}
+
+export function clearAuthToken() {
+  delete api.defaults.headers.common.Authorization
+}
+
+try {
+  const savedAuth = localStorage.getItem(AUTH_STORAGE_KEY)
+  if (savedAuth) {
+    const parsed = JSON.parse(savedAuth)
+    setAuthToken(parsed?.token)
+  }
+} catch {
+  // Ignore localStorage errors in non-browser contexts.
+}
 
 export async function getSystems() {
   const { data } = await api.get('/systems')

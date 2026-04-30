@@ -85,6 +85,13 @@ function getApiBase() {
   return apiBaseInput.value.trim().replace(/\/+$/, '')
 }
 
+function getAuthHeaders(includeJson = true) {
+  const headers = includeJson ? { 'Content-Type': 'application/json' } : {}
+  const token = String(authUser?.token || '').trim()
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
+}
+
 function restoreSettings() {
   apiBaseInput.value = localStorage.getItem('tracker-api-base') || 'http://localhost:5000/api'
   userIdInput.value = localStorage.getItem('tracker-user-id') || ''
@@ -117,7 +124,7 @@ function restoreSettings() {
 }
 
 function applyAuthState() {
-  const signedIn = Boolean(authUser?.email && authUser?.userId)
+  const signedIn = Boolean(authUser?.email && authUser?.userId && authUser?.token)
   if (signedIn) {
     userIdInput.value = String(authUser.userId)
     userNameInput.value = String(authUser.displayName || authUser.email)
@@ -181,6 +188,7 @@ async function loginTrackerUser() {
       displayName: data?.displayName || data?.email || email,
       email: data?.email || email,
       role: data?.role || 'User',
+      token: data?.token || '',
     }
     authPasswordInput.value = ''
     applyAuthState()
@@ -290,7 +298,7 @@ async function startRemoteTimer() {
 
   const response = await fetch(`${apiBase}/tracker/timer/start`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(true),
     body: JSON.stringify(payload),
   })
   if (!response.ok) {
@@ -316,7 +324,7 @@ async function stopRemoteTimer() {
   }
   const response = await fetch(`${apiBase}/tracker/timer/stop`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(true),
     body: JSON.stringify(payload),
   })
 
@@ -377,9 +385,9 @@ async function refreshProjects(showErrors = false) {
   if (!apiBase) return
   try {
     const [projectRes, taskRes, employeeRes] = await Promise.all([
-      fetch(`${apiBase}/projects`),
-      fetch(`${apiBase}/tasks`),
-      fetch(`${apiBase}/employees`),
+      fetch(`${apiBase}/projects`, { headers: getAuthHeaders(false) }),
+      fetch(`${apiBase}/tasks`, { headers: getAuthHeaders(false) }),
+      fetch(`${apiBase}/employees`, { headers: getAuthHeaders(false) }),
     ])
     if (!projectRes.ok || !taskRes.ok || !employeeRes.ok) throw new Error('Unable to load projects/tasks')
     const projects = await projectRes.json()

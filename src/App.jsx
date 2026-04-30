@@ -74,6 +74,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import {
   API_BASE_URL,
+  clearAuthToken,
   deleteNotifications,
   getEmployees,
   getNotifications,
@@ -84,6 +85,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   markNotificationsRead,
+  setAuthToken,
 } from './services/api'
 import {
   allowedNavLabels,
@@ -1608,7 +1610,7 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
               }}
             />
 
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Stack direction="row" alignItems="center">
               <Stack direction="row" alignItems="center" spacing={0.6}>
                 <Checkbox
                   id="keep-signed-in"
@@ -1621,9 +1623,6 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
                   Keep me signed in
                 </Typography>
               </Stack>
-              <Typography sx={{ fontSize: '0.83rem', fontWeight: 700, color: '#7c3aed', cursor: 'pointer', '&:hover': { color: '#6d28d9' } }}>
-                Forgot password?
-              </Typography>
             </Stack>
 
             <Button
@@ -1875,13 +1874,14 @@ function App() {
       const p = JSON.parse(saved)
       const role = normalizeRole(p.role)
       return {
-        signedIn: !!p.signedIn,
+        signedIn: !!p.signedIn && !!p.token,
         keepSignedIn: p.keepSignedIn !== false,
         role,
         displayName: p.displayName || (role === 'Employee' ? 'Team member' : 'System Admin'),
         email: p.email || 'admin@system.local',
         userId: p.userId ?? null,
         passwordResetRequired: Boolean(p.passwordResetRequired),
+        token: String(p.token || ''),
       }
     } catch { return { signedIn: false, keepSignedIn: true } }
   })
@@ -1898,6 +1898,11 @@ function App() {
     confirmPassword: '',
   })
   const [showChangePassword, setShowChangePassword] = useState(false)
+
+  useEffect(() => {
+    if (auth?.signedIn && auth?.token) setAuthToken(auth.token)
+    else clearAuthToken()
+  }, [auth?.signedIn, auth?.token])
 
   const stats = useMemo(() => ({
     total: systems.length,
@@ -2002,7 +2007,9 @@ function App() {
         email: payload.email || loginForm.email,
         userId: payload.userId ?? null,
         passwordResetRequired: Boolean(payload.passwordResetRequired),
+        token: String(payload.token || ''),
       }
+      setAuthToken(next.token)
       setAuth(next)
       setSelectedNav('Dashboard')
       setSelectedTaskProject('all')
@@ -2031,6 +2038,7 @@ function App() {
   }
 
   function handleLogout() {
+    clearAuthToken()
     setAuth({ signedIn: false, keepSignedIn: false })
     try { localStorage.removeItem('trackdesk-auth') } catch (err) { console.warn('Failed to remove auth', err) }
   }
