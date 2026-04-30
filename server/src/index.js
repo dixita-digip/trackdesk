@@ -21,11 +21,23 @@ const allowedOrigins = rawCorsOrigins
   ? rawCorsOrigins.split(',').map((item) => item.trim()).filter(Boolean)
   : ['http://localhost:5173', 'http://127.0.0.1:5173']
 
+function isOriginAllowed(origin) {
+  return allowedOrigins.some((rule) => {
+    if (!rule) return false
+    if (rule === origin) return true
+    if (!rule.includes('*')) return false
+    // Simple wildcard support: https://*.vercel.app
+    const escaped = rule.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')
+    const regex = new RegExp(`^${escaped}$`)
+    return regex.test(origin)
+  })
+}
+
 app.use(cors({
   origin(origin, callback) {
     // Allow non-browser or same-origin requests with no Origin header.
     if (!origin) return callback(null, true)
-    if (allowedOrigins.includes(origin)) return callback(null, true)
+    if (isOriginAllowed(origin)) return callback(null, true)
     return callback(new Error(`CORS blocked for origin: ${origin}`))
   },
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
