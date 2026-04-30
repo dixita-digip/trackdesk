@@ -21,6 +21,7 @@ const allowedOrigins = rawCorsOrigins
   ? rawCorsOrigins.split(',').map((item) => item.trim()).filter(Boolean)
   : ['http://localhost:5173', 'http://127.0.0.1:5173']
 const allowAllOrigins = allowedOrigins.includes('*')
+const strictCors = String(process.env.CORS_STRICT || '').trim().toLowerCase() === 'true'
 
 function normalizeOrigin(value) {
   return String(value || '').trim().replace(/\/+$/, '')
@@ -45,6 +46,7 @@ app.use(cors({
   origin(origin, callback) {
     // Allow non-browser or same-origin requests with no Origin header.
     if (!origin) return callback(null, true)
+    if (!strictCors) return callback(null, true)
     if (isOriginAllowed(origin)) return callback(null, true)
     return callback(new Error(`CORS blocked for origin: ${origin}`))
   },
