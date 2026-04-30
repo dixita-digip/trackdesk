@@ -63,8 +63,17 @@ function isOriginAllowed(origin) {
 
 app.use(
   cors({
-    origin: "https://trackdesk.vercel.app",
-    credentials: true, // if using cookies/auth
+    origin: function (origin, callback) {
+      // allow requests without origin (like mobile apps, postman)
+      if (!origin) return callback(null, true);
+
+      if (isOriginAllowed(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("CORS not allowed"));
+      }
+    },
+    credentials: true,
   })
 );
 app.use(express.json())
