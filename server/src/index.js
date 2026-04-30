@@ -16,7 +16,21 @@ const TRACKER_DOWNLOADS_DIR = path.dirname(TRACKER_INSTALLER_PATH)
 const TRACKER_BUILD_OUTPUT_DIR = path.join(__dirname, '../../desktop-tracker/dist')
 const TRACKER_INSTALLER_DIRS = [TRACKER_DOWNLOADS_DIR, TRACKER_BUILD_OUTPUT_DIR]
 
-app.use(cors())
+const rawCorsOrigins = String(process.env.CORS_ORIGIN || '').trim()
+const allowedOrigins = rawCorsOrigins
+  ? rawCorsOrigins.split(',').map((item) => item.trim()).filter(Boolean)
+  : ['http://localhost:5173', 'http://127.0.0.1:5173']
+
+app.use(cors({
+  origin(origin, callback) {
+    // Allow non-browser or same-origin requests with no Origin header.
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    return callback(new Error(`CORS blocked for origin: ${origin}`))
+  },
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}))
 app.use(express.json())
 
 const { createSupabaseClient, loadAppState, createSaveDb } = require('./db-supabase')
