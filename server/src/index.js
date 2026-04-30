@@ -16,47 +16,32 @@ const TRACKER_DOWNLOADS_DIR = path.dirname(TRACKER_INSTALLER_PATH)
 const TRACKER_BUILD_OUTPUT_DIR = path.join(__dirname, '../../desktop-tracker/dist')
 const TRACKER_INSTALLER_DIRS = [TRACKER_DOWNLOADS_DIR, TRACKER_BUILD_OUTPUT_DIR]
 
-const rawCorsOrigins = String(process.env.CORS_ORIGIN || '').trim()
-const envAllowedOrigins = rawCorsOrigins
-  ? rawCorsOrigins.split(',').map((item) => item.trim()).filter(Boolean)
-  : ['http://localhost:5173', 'http://127.0.0.1:5173']
-const frontendUrl = String(process.env.FRONTEND_URL || '').trim()
-const allowedOrigins = [...new Set([
-  ...envAllowedOrigins,
-  ...(frontendUrl ? [frontendUrl] : []),
-  'https://trackdesk.vercel.app',
-  'https://*.vercel.app',
-])]
-const allowAllOrigins = allowedOrigins.includes('*')
-const strictCors = String(process.env.CORS_STRICT || '').trim().toLowerCase() === 'true'
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://trackdesk.vercel.app",
+];
 
-function normalizeOrigin(value) {
-  return String(value || '').trim().replace(/\/+$/, '')
-}
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
 
-function isOriginAllowed(origin) {
-  if (allowAllOrigins) return true
-  const normalizedOrigin = normalizeOrigin(origin)
-  return allowedOrigins.some((rule) => {
-    if (!rule) return false
-    const normalizedRule = normalizeOrigin(rule)
-    if (normalizedRule === normalizedOrigin) return true
-    if (!normalizedRule.includes('*')) return false
-    // Simple wildcard support: https://*.vercel.app
-    const escaped = normalizedRule.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')
-    const regex = new RegExp(`^${escaped}$`)
-    return regex.test(normalizedOrigin)
-  })
-}
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
 
-app.use(
-  cors({
-    origin: "https://trackdesk.vercel.app",
-    credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
+
+  // 🔥 Handle preflight request
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+app.use(express.json());
 
 const { createSupabaseClient, loadAppState, createSaveDb } = require('./db-supabase')
 

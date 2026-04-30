@@ -4,7 +4,7 @@ const rawApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '/api').trim()
 export const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, '')
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   withCredentials: true,
 })
 
