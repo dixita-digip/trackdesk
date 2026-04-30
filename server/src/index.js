@@ -17,9 +17,16 @@ const TRACKER_BUILD_OUTPUT_DIR = path.join(__dirname, '../../desktop-tracker/dis
 const TRACKER_INSTALLER_DIRS = [TRACKER_DOWNLOADS_DIR, TRACKER_BUILD_OUTPUT_DIR]
 
 const rawCorsOrigins = String(process.env.CORS_ORIGIN || '').trim()
-const allowedOrigins = rawCorsOrigins
+const envAllowedOrigins = rawCorsOrigins
   ? rawCorsOrigins.split(',').map((item) => item.trim()).filter(Boolean)
   : ['http://localhost:5173', 'http://127.0.0.1:5173']
+const frontendUrl = String(process.env.FRONTEND_URL || '').trim()
+const allowedOrigins = [...new Set([
+  ...envAllowedOrigins,
+  ...(frontendUrl ? [frontendUrl] : []),
+  'https://trackdesk.vercel.app',
+  'https://*.vercel.app',
+])]
 const allowAllOrigins = allowedOrigins.includes('*')
 const strictCors = String(process.env.CORS_STRICT || '').trim().toLowerCase() === 'true'
 
