@@ -9,16 +9,26 @@ const binaryMimeTypes = [
 
 let handler
 
+function requestPath(req) {
+  const raw = req.url || req.originalUrl || ''
+  return String(raw).split('?')[0] || ''
+}
+
 function isHealthPath(req) {
   if (String(req.method || '').toUpperCase() !== 'GET') return false
-  const path = String(req.url || '').split('?')[0]
-  return path === '/api/health' || path.endsWith('/api/health') || path === '/health'
+  const p = requestPath(req)
+  return p === '/api/health' || p.endsWith('/api/health') || p === '/health'
 }
 
 function isAuthLoginPost(req) {
   if (String(req.method || '').toUpperCase() !== 'POST') return false
-  const path = String(req.url || '').split('?')[0]
-  return path === '/api/auth/login' || path.endsWith('/api/auth/login')
+  const p = requestPath(req)
+  return (
+    p === '/api/auth/login' ||
+    p.endsWith('/api/auth/login') ||
+    p === '/auth/login' ||
+    p.endsWith('/auth/login')
+  )
 }
 
 module.exports = async (req, res) => {
@@ -41,5 +51,7 @@ module.exports = async (req, res) => {
   if (!handler) {
     handler = serverless(app, { binary: binaryMimeTypes })
   }
-  return handler(req, res)
+  const out = handler(req, res)
+  if (out && typeof out.then === 'function') await out
+  return out
 }

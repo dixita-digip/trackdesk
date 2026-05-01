@@ -77,6 +77,18 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// serverless-http + Express 5: body-parser may treat the request as already finished when
+// `req.socket.readable` is false, so JSON never parses and POST routes hang. Vercel/AWS-style only.
+// https://github.com/dougmoscrop/serverless-http/issues/305
+app.use((req, _res, next) => {
+  try {
+    if (req.socket && req.socket.readable === false) req.socket.readable = true
+  } catch {
+    // ignore if socket.readable is non-writable
+  }
+  next()
+})
+
 app.use(express.json());
 
 const { createSupabaseClient, loadAppState, createSaveDb, loadEmployeesOnly } = require('./db-supabase')
