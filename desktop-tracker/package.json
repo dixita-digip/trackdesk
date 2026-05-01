@@ -12,6 +12,7 @@
   "build": {
     "appId": "com.trackdesk.tracker",
     "productName": "TrackDesk Tracker",
+    "artifactName": "tracker-setup.${ext}",
     "directories": {
       "output": "dist"
     },

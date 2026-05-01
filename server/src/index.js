@@ -6,6 +6,7 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env'), override: t
 const express = require('express')
 const cors = require('cors')
 const fs = require('fs')
+const { Readable } = require('stream')
 const crypto = require('crypto')
 const nodemailer = require('nodemailer')
 const jwt = require('jsonwebtoken')
@@ -99,6 +100,8 @@ let nextTrackerTimerId = 1
 /** @type {() => Promise<unknown>} */
 let saveDb = () => Promise.resolve()
 
+let bootstrapPromise = null
+
 async function bootstrapPersistence() {
   const supabase = createSupabaseClient()
   const state = await loadAppState(supabase)
@@ -132,6 +135,17 @@ async function bootstrapPersistence() {
     nextNotificationId,
     nextTrackerTimerId,
   }))
+}
+
+/** Single init for local server and Vercel serverless (cold starts). */
+async function ensureBootstrapped() {
+  if (!bootstrapPromise) {
+    bootstrapPromise = bootstrapPersistence().catch((err) => {
+      bootstrapPromise = null
+      throw err
+    })
+  }
+  return bootstrapPromise
 }
 
 function getLatestTrackerInstaller() {
@@ -564,15 +578,61 @@ app.use('/api', (req, res, next) => {
   return requireBearerAuth(req, res, next)
 })
 
-app.get('/api/tracker/download', (req, res) => {
+app.get('/api/tracker/download', async (req, res) => {
   const latestInstaller = getLatestTrackerInstaller()
-  if (!latestInstaller) {
+  if (latestInstaller) {
+    return res.download(latestInstaller.fullPath, latestInstaller.name)
+  }
+
+  const remoteUrl = String(process.env.TRACKER_INSTALLER_URL || '').trim()
+  if (!remoteUrl) {
     return res.status(404).json({
-      message: 'Tracker installer not found. Build desktop app and place .exe/.msi installer in server/downloads.',
+      message:
+        'Tracker installer not found. Build the desktop app and add .exe/.msi under server/downloads (local), or set TRACKER_INSTALLER_URL on the server to a direct download link (e.g. GitHub Release asset).',
     })
   }
 
-  return res.download(latestInstaller.fullPath, latestInstaller.name)
+  try {
+    const upstream = await fetch(remoteUrl, { redirect: 'follow' })
+    if (!upstream.ok) {
+      console.error('[tracker/download] upstream HTTP', upstream.status, remoteUrl)
+      return res.status(502).json({ message: 'Could not fetch tracker installer from configured URL.' })
+    }
+
+    const fallbackName = 'tracker-setup.exe'
+    const disp = upstream.headers.get('content-disposition')
+    if (disp) {
+      res.setHeader('Content-Disposition', disp)
+    } else {
+      try {
+        const base = path.basename(new URL(remoteUrl).pathname) || fallbackName
+        res.setHeader('Content-Disposition', `attachment; filename="${base}"`)
+      } catch {
+        res.setHeader('Content-Disposition', `attachment; filename="${fallbackName}"`)
+      }
+    }
+
+    const ct = upstream.headers.get('content-type')
+    if (ct) res.setHeader('Content-Type', ct)
+    else res.setHeader('Content-Type', 'application/octet-stream')
+
+    if (upstream.body) {
+      const nodeStream = Readable.fromWeb(upstream.body)
+      nodeStream.on('error', (err) => {
+        console.error('[tracker/download] stream error', err)
+        if (!res.headersSent) res.sendStatus(502)
+        else res.destroy(err)
+      })
+      nodeStream.pipe(res)
+      return
+    }
+
+    const buf = Buffer.from(await upstream.arrayBuffer())
+    return res.send(buf)
+  } catch (err) {
+    console.error('[tracker/download] remote fetch error', err)
+    return res.status(502).json({ message: 'Could not fetch tracker installer.' })
+  }
 })
 
 app.post('/api/tracker/timer/start', async (req, res) => {
@@ -1328,7 +1388,7 @@ app.patch('/api/systems/:id/status', async (req, res) => {
 
 async function start() {
   try {
-    await bootstrapPersistence()
+    await ensureBootstrapped()
   } catch (err) {
     console.error('Failed to connect to Supabase or load data:', err.message || err)
     process.exit(1)
@@ -1338,4 +1398,8 @@ async function start() {
   })
 }
 
-start()
+if (require.main === module) {
+  start()
+}
+
+module.exports = { app, ensureBootstrapped }

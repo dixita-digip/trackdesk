@@ -2175,7 +2175,14 @@ function App() {
 
   async function handleDownloadTracker() {
     try {
-      const response = await fetch(`${API_BASE_URL}/tracker/download`)
+      const token = String(auth?.token || '').trim()
+      if (!token) {
+        setNotice({ type: 'error', message: 'Sign in to download the tracker app.' })
+        return
+      }
+      const response = await fetch(`${API_BASE_URL}/tracker/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (!response.ok) {
         let message = 'Failed to download tracker app'
         try {

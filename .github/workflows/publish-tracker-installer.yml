@@ -1,0 +1,54 @@
+# Build the Windows tracker (.exe) and upload it to Supabase Storage.
+# Prerequisite: Supabase bucket "tracker-installers" (public read) + GitHub secrets (see server/env.example / README).
+name: Publish tracker installer
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'desktop-tracker/**'
+      - '.github/workflows/publish-tracker-installer.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-upload:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: desktop-tracker/package-lock.json
+
+      - name: Install and build (Windows NSIS)
+        working-directory: desktop-tracker
+        run: |
+          npm ci
+          npm run build:win
+
+      - name: Upload to Supabase Storage (overwrite same path)
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          EXE="desktop-tracker/dist/tracker-setup.exe"
+          if [[ ! -f "$EXE" ]]; then
+            EXE=$(ls desktop-tracker/dist/*.exe | head -n 1)
+          fi
+          if [[ ! -f "$EXE" ]]; then
+            echo "No .exe found in desktop-tracker/dist"
+            exit 1
+          fi
+          BASE="${SUPABASE_URL%/}"
+          echo "Uploading ${EXE} -> ${BASE}/storage/v1/object/tracker-installers/tracker-setup.exe"
+          curl -f -sS -X POST "${BASE}/storage/v1/object/tracker-installers/tracker-setup.exe" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/octet-stream" \
+            -H "x-upsert: true" \
+            --data-binary "@${EXE}"
+          echo "Upload OK. Public URL (if bucket is public): ${BASE}/storage/v1/object/public/tracker-installers/tracker-setup.exe"
