@@ -1340,6 +1340,12 @@ function TopBar({
    Login Page
 ──────────────────────────────────────────────── */
 function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLoginForm }) {
+  useEffect(() => {
+    const ac = new AbortController()
+    fetch(`${API_BASE_URL}/auth/precache`, { method: 'GET', signal: ac.signal }).catch(() => {})
+    return () => ac.abort()
+  }, [])
+
   return (
     <Box
       sx={{

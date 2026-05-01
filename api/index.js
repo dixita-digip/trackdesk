@@ -20,6 +20,17 @@ function isHealthPath(req) {
   return p === '/api/health' || p.endsWith('/api/health') || p === '/health'
 }
 
+function isAuthPrecacheGet(req) {
+  if (String(req.method || '').toUpperCase() !== 'GET') return false
+  const p = requestPath(req)
+  return (
+    p === '/api/auth/precache' ||
+    p.endsWith('/api/auth/precache') ||
+    p === '/auth/precache' ||
+    p.endsWith('/auth/precache')
+  )
+}
+
 function isAuthLoginPost(req) {
   if (String(req.method || '').toUpperCase() !== 'POST') return false
   const p = requestPath(req)
@@ -31,10 +42,39 @@ function isAuthLoginPost(req) {
   )
 }
 
+function isOptions(req) {
+  return String(req.method || '').toUpperCase() === 'OPTIONS'
+}
+
+async function runHandler(req, res) {
+  if (!handler) {
+    handler = serverless(app, { binary: binaryMimeTypes })
+  }
+  const out = handler(req, res)
+  if (out && typeof out.then === 'function') await out
+  return out
+}
+
 module.exports = async (req, res) => {
-  // Hobby: 10s max — avoid loading all Supabase tables just for uptime checks.
   if (isHealthPath(req)) {
     res.status(200).json({ status: 'ok' })
+    return
+  }
+
+  // Warm employees in the background while the user types credentials (overlap with cold start).
+  if (isAuthPrecacheGet(req)) {
+    try {
+      await ensureLoginBootstrap()
+    } catch (err) {
+      console.error('[vercel] auth precache failed:', err)
+    }
+    res.status(204).end()
+    return
+  }
+
+  // CORS preflight must NOT load the entire DB (was causing multi-second / pending POSTs).
+  if (isOptions(req)) {
+    await runHandler(req, res)
     return
   }
 
@@ -48,10 +88,6 @@ module.exports = async (req, res) => {
     }
     return
   }
-  if (!handler) {
-    handler = serverless(app, { binary: binaryMimeTypes })
-  }
-  const out = handler(req, res)
-  if (out && typeof out.then === 'function') await out
-  return out
+
+  await runHandler(req, res)
 }
