@@ -17,30 +17,39 @@ const TRACKER_DOWNLOADS_DIR = path.dirname(TRACKER_INSTALLER_PATH)
 const TRACKER_BUILD_OUTPUT_DIR = path.join(__dirname, '../../desktop-tracker/dist')
 const TRACKER_INSTALLER_DIRS = [TRACKER_DOWNLOADS_DIR, TRACKER_BUILD_OUTPUT_DIR]
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "https://trackdesk.vercel.app",
-];
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowed = [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "https://trackdesk.vercel.app",
+      "https://trackdesk-fluj.onrender.com",
+    ];
 
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
+    // Allow Vercel preview branches like trackdesk-xxx.vercel.app
+    const vercelRegex = /^https:\/\/trackdesk(-[a-z0-9-]+)?\.vercel\.app$/;
 
-  if (allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-  }
+    if (!origin || allowed.includes(origin) || vercelRegex.test(origin)) {
+      callback(null, true);
+    } else {
+      console.log(`[CORS Blocked] Origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT', 'OPTIONS', 'HEAD'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Accept',
+    'Origin',
+    'X-Requested-With'
+  ],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
 
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
-
-  // 🔥 Handle preflight request
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
