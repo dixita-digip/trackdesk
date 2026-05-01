@@ -42,7 +42,7 @@ const corsExactOrigins = new Set([
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'https://trackdesk.vercel.app',
-  'https://trackdesk-fluj.onrender.com',
+  'https://trackdesk-f1uj.onrender.com',
   ...envCors.exact,
 ])
 const corsOriginPatterns = [vercelTrackdeskRegex, ...envCors.patterns]
