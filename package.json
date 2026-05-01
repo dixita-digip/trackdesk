@@ -27,6 +27,7 @@
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.1",
     "react-toastify": "^11.1.0",
+    "serverless-http": "^3.2.0",
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
