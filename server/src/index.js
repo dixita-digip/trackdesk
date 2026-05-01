@@ -79,7 +79,7 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 
-const { createSupabaseClient, loadAppState, createSaveDb } = require('./db-supabase')
+const { createSupabaseClient, loadAppState, createSaveDb, loadEmployeesOnly } = require('./db-supabase')
 
 let systems = []
 let projects = []
@@ -101,6 +101,9 @@ let nextTrackerTimerId = 1
 let saveDb = () => Promise.resolve()
 
 let bootstrapPromise = null
+let loginBootstrapPromise = null
+let fullBootstrapped = false
+let loginBootstrapped = false
 
 async function bootstrapPersistence() {
   const supabase = createSupabaseClient()
@@ -137,15 +140,51 @@ async function bootstrapPersistence() {
   }))
 }
 
-/** Single init for local server and Vercel serverless (cold starts). */
+/** Full Supabase load (all tables). Required for every route except health + login. */
 async function ensureBootstrapped() {
-  if (!bootstrapPromise) {
-    bootstrapPromise = bootstrapPersistence().catch((err) => {
-      bootstrapPromise = null
+  if (fullBootstrapped) return
+  if (bootstrapPromise) {
+    await bootstrapPromise
+    return
+  }
+  if (loginBootstrapPromise) {
+    try {
+      await loginBootstrapPromise
+    } catch {
+      // ensureBootstrapped will retry full load
+    }
+    loginBootstrapPromise = null
+  }
+  bootstrapPromise = (async () => {
+    await bootstrapPersistence()
+    fullBootstrapped = true
+    loginBootstrapped = true
+  })().catch((err) => {
+    bootstrapPromise = null
+    throw err
+  })
+  await bootstrapPromise
+}
+
+/** Vercel Hobby ~10s cap: login only needs employees in memory (admin uses env). */
+async function ensureLoginBootstrap() {
+  if (fullBootstrapped) return
+  if (loginBootstrapped) return
+  if (bootstrapPromise) {
+    await bootstrapPromise
+    return
+  }
+  if (!loginBootstrapPromise) {
+    loginBootstrapPromise = (async () => {
+      const supabase = createSupabaseClient()
+      employees = await loadEmployeesOnly(supabase)
+      loginBootstrapped = true
+    })().catch((err) => {
+      loginBootstrapPromise = null
       throw err
     })
   }
-  return bootstrapPromise
+  await loginBootstrapPromise
 }
 
 function getLatestTrackerInstaller() {
@@ -1402,4 +1441,4 @@ if (require.main === module) {
   start()
 }
 
-module.exports = { app, ensureBootstrapped }
+module.exports = { app, ensureBootstrapped, ensureLoginBootstrap }

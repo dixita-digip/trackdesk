@@ -234,6 +234,11 @@ async function loadAppState(supabase) {
   }
 }
 
+async function loadEmployeesOnly(supabase) {
+  const employeeRows = await fetchAll(supabase, 'employees', '*', { column: 'id', ascending: false })
+  return employeeRows.map(mapEmployee)
+}
+
 function chunk(arr, size) {
   const out = []
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
@@ -405,6 +410,7 @@ function createSaveDb(supabase, getState) {
 module.exports = {
   createSupabaseClient,
   loadAppState,
+  loadEmployeesOnly,
   createSaveDb,
   persistFullState,
 }

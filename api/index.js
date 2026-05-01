@@ -1,5 +1,5 @@
 const serverless = require('serverless-http')
-const { app, ensureBootstrapped } = require('../server/src/index.js')
+const { app, ensureBootstrapped, ensureLoginBootstrap } = require('../server/src/index.js')
 
 const binaryMimeTypes = [
   'application/octet-stream',
@@ -15,6 +15,12 @@ function isHealthPath(req) {
   return path === '/api/health' || path.endsWith('/api/health') || path === '/health'
 }
 
+function isAuthLoginPost(req) {
+  if (String(req.method || '').toUpperCase() !== 'POST') return false
+  const path = String(req.url || '').split('?')[0]
+  return path === '/api/auth/login' || path.endsWith('/api/auth/login')
+}
+
 module.exports = async (req, res) => {
   // Hobby: 10s max — avoid loading all Supabase tables just for uptime checks.
   if (isHealthPath(req)) {
@@ -23,7 +29,8 @@ module.exports = async (req, res) => {
   }
 
   try {
-    await ensureBootstrapped()
+    if (isAuthLoginPost(req)) await ensureLoginBootstrap()
+    else await ensureBootstrapped()
   } catch (err) {
     console.error('[vercel] Bootstrap failed:', err)
     if (!res.headersSent) {
