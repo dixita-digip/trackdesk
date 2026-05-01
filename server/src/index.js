@@ -77,8 +77,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Vercel + serverless-http: ensure body-parser can read JSON (Express 4 mostly fixes this; keep belt-and-suspenders).
-// https://github.com/dougmoscrop/serverless-http/issues/305
+// serverless-http: keep socket readable before any middleware reads the body (when we do use express.json()).
 app.use((req, _res, next) => {
   if (!process.env.VERCEL) return next()
   try {
@@ -89,7 +88,36 @@ app.use((req, _res, next) => {
   next()
 })
 
-app.use(express.json());
+// Vercel injects a parsed `req.body` for JSON before the function runs. Running express.json()
+// again tries to read the same stream → hang / pending POST. Locally we keep express.json().
+// https://vercel.com/kb/guide/handling-node-request-body
+function vercelSafeJson(req, res, next) {
+  if (process.env.VERCEL) {
+    const ct = String(req.headers['content-type'] || '')
+    if (Buffer.isBuffer(req.body) && ct.includes('application/json')) {
+      try {
+        req.body = req.body.length === 0 ? {} : JSON.parse(req.body.toString('utf8'))
+      } catch {
+        return res.status(400).json({ message: 'Invalid JSON' })
+      }
+      return next()
+    }
+    if (req.body != null && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+      return next()
+    }
+    if (typeof req.body === 'string' && ct.includes('application/json')) {
+      try {
+        req.body = req.body === '' ? {} : JSON.parse(req.body)
+      } catch {
+        return res.status(400).json({ message: 'Invalid JSON' })
+      }
+      return next()
+    }
+  }
+  return express.json()(req, res, next)
+}
+
+app.use(vercelSafeJson)
 
 const { createSupabaseClient, loadAppState, createSaveDb, loadEmployeesOnly } = require('./db-supabase')
 
