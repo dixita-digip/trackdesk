@@ -17,23 +17,48 @@ const TRACKER_DOWNLOADS_DIR = path.dirname(TRACKER_INSTALLER_PATH)
 const TRACKER_BUILD_OUTPUT_DIR = path.join(__dirname, '../../desktop-tracker/dist')
 const TRACKER_INSTALLER_DIRS = [TRACKER_DOWNLOADS_DIR, TRACKER_BUILD_OUTPUT_DIR]
 
+/** Split CORS_ORIGIN: exact URLs vs https://*.example.com (one subdomain label before the suffix). */
+function parseCorsOriginEnv(value) {
+  const exact = []
+  const patterns = []
+  if (!value || typeof value !== 'string') return { exact, patterns }
+  for (const part of value.split(',')) {
+    const s = part.trim()
+    if (!s) continue
+    const wild = s.match(/^https:\/\/\*\.(.+)$/i)
+    if (wild) {
+      const escaped = wild[1].replace(/\./g, '\\.')
+      patterns.push(new RegExp(`^https:\\/\\/[^/]+\\.${escaped}$`, 'i'))
+      continue
+    }
+    exact.push(s)
+  }
+  return { exact, patterns }
+}
+
+const vercelTrackdeskRegex = /^https:\/\/trackdesk(-[a-z0-9-]+)?\.vercel\.app$/i
+const envCors = parseCorsOriginEnv(process.env.CORS_ORIGIN)
+const corsExactOrigins = new Set([
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://trackdesk.vercel.app',
+  'https://trackdesk-fluj.onrender.com',
+  ...envCors.exact,
+])
+const corsOriginPatterns = [vercelTrackdeskRegex, ...envCors.patterns]
+
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowed = [
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-      "https://trackdesk.vercel.app",
-      "https://trackdesk-fluj.onrender.com",
-    ];
+    const allowed =
+      !origin ||
+      corsExactOrigins.has(origin) ||
+      corsOriginPatterns.some((re) => re.test(origin))
 
-    // Allow Vercel preview branches like trackdesk-xxx.vercel.app
-    const vercelRegex = /^https:\/\/trackdesk(-[a-z0-9-]+)?\.vercel\.app$/;
-
-    if (!origin || allowed.includes(origin) || vercelRegex.test(origin)) {
-      callback(null, true);
+    if (allowed) {
+      callback(null, true)
     } else {
-      console.log(`[CORS Blocked] Origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      console.log(`[CORS Blocked] Origin: ${origin}`)
+      callback(new Error('Not allowed by CORS'))
     }
   },
   credentials: true,
