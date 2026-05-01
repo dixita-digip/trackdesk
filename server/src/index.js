@@ -77,49 +77,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// serverless-http: keep socket readable before any middleware reads the body (when we do use express.json()).
-app.use((req, _res, next) => {
-  if (!process.env.VERCEL) return next()
-  try {
-    if (req.socket && req.socket.readable === false) req.socket.readable = true
-  } catch {
-    /* ignore */
-  }
-  next()
-})
+app.use(express.json());
 
-// Vercel injects a parsed `req.body` for JSON before the function runs. Running express.json()
-// again tries to read the same stream → hang / pending POST. Locally we keep express.json().
-// https://vercel.com/kb/guide/handling-node-request-body
-function vercelSafeJson(req, res, next) {
-  if (process.env.VERCEL) {
-    const ct = String(req.headers['content-type'] || '')
-    if (Buffer.isBuffer(req.body) && ct.includes('application/json')) {
-      try {
-        req.body = req.body.length === 0 ? {} : JSON.parse(req.body.toString('utf8'))
-      } catch {
-        return res.status(400).json({ message: 'Invalid JSON' })
-      }
-      return next()
-    }
-    if (req.body != null && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
-      return next()
-    }
-    if (typeof req.body === 'string' && ct.includes('application/json')) {
-      try {
-        req.body = req.body === '' ? {} : JSON.parse(req.body)
-      } catch {
-        return res.status(400).json({ message: 'Invalid JSON' })
-      }
-      return next()
-    }
-  }
-  return express.json()(req, res, next)
-}
-
-app.use(vercelSafeJson)
-
-const { createSupabaseClient, loadAppState, createSaveDb, loadEmployeesOnly } = require('./db-supabase')
+const { createSupabaseClient, loadAppState, createSaveDb } = require('./db-supabase')
 
 let systems = []
 let projects = []
@@ -141,9 +101,6 @@ let nextTrackerTimerId = 1
 let saveDb = () => Promise.resolve()
 
 let bootstrapPromise = null
-let loginBootstrapPromise = null
-let fullBootstrapped = false
-let loginBootstrapped = false
 
 async function bootstrapPersistence() {
   const supabase = createSupabaseClient()
@@ -180,51 +137,14 @@ async function bootstrapPersistence() {
   }))
 }
 
-/** Full Supabase load (all tables). Required for every route except health + login. */
 async function ensureBootstrapped() {
-  if (fullBootstrapped) return
-  if (bootstrapPromise) {
-    await bootstrapPromise
-    return
-  }
-  if (loginBootstrapPromise) {
-    try {
-      await loginBootstrapPromise
-    } catch {
-      // ensureBootstrapped will retry full load
-    }
-    loginBootstrapPromise = null
-  }
-  bootstrapPromise = (async () => {
-    await bootstrapPersistence()
-    fullBootstrapped = true
-    loginBootstrapped = true
-  })().catch((err) => {
-    bootstrapPromise = null
-    throw err
-  })
-  await bootstrapPromise
-}
-
-/** Vercel Hobby ~10s cap: login only needs employees in memory (admin uses env). */
-async function ensureLoginBootstrap() {
-  if (fullBootstrapped) return
-  if (loginBootstrapped) return
-  if (bootstrapPromise) {
-    await bootstrapPromise
-    return
-  }
-  if (!loginBootstrapPromise) {
-    loginBootstrapPromise = (async () => {
-      const supabase = createSupabaseClient()
-      employees = await loadEmployeesOnly(supabase)
-      loginBootstrapped = true
-    })().catch((err) => {
-      loginBootstrapPromise = null
+  if (!bootstrapPromise) {
+    bootstrapPromise = bootstrapPersistence().catch((err) => {
+      bootstrapPromise = null
       throw err
     })
   }
-  await loginBootstrapPromise
+  return bootstrapPromise
 }
 
 function getLatestTrackerInstaller() {
@@ -1480,5 +1400,3 @@ async function start() {
 if (require.main === module) {
   start()
 }
-
-module.exports = { app, ensureBootstrapped, ensureLoginBootstrap }
