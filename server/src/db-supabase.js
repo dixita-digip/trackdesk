@@ -166,7 +166,8 @@ function mapNotification(row) {
 }
 
 async function loadAppState(supabase) {
-  const [counterRow] = await fetchAll(supabase, 'app_counters', '*')
+  const counterRows = await fetchAll(supabase, 'app_counters', '*')
+  const counterRow = counterRows[0]
   const next = counterRow || {
     next_system_id: 1,
     next_project_id: 1,
@@ -186,28 +187,33 @@ async function loadAppState(supabase) {
     membersByProjectId.get(m.project_id).push(m.member_name)
   }
 
-  const projectRows = await fetchAll(supabase, 'projects', '*', { column: 'id', ascending: false })
+  const [
+    projectRows,
+    systemRows,
+    employeeRows,
+    taskRows,
+    activityRows,
+    sessionRows,
+    timerRows,
+    notifRows,
+  ] = await Promise.all([
+    fetchAll(supabase, 'projects', '*', { column: 'id', ascending: false }),
+    fetchAll(supabase, 'systems', '*', { column: 'id', ascending: false }),
+    fetchAll(supabase, 'employees', '*', { column: 'id', ascending: false }),
+    fetchAll(supabase, 'tasks', '*', { column: 'id', ascending: false }),
+    fetchAll(supabase, 'activity_logs', '*', { column: 'id', ascending: false }),
+    fetchAll(supabase, 'tracker_sessions', '*', { column: 'id', ascending: false }),
+    fetchAll(supabase, 'active_tracker_timers', '*', { column: 'id', ascending: false }),
+    fetchAll(supabase, 'notifications', '*', { column: 'id', ascending: false }),
+  ])
+
   const projects = projectRows.map((r) => mapProject(r, membersByProjectId))
-
-  const systemRows = await fetchAll(supabase, 'systems', '*', { column: 'id', ascending: false })
   const systems = systemRows.map(mapSystem)
-
-  const employeeRows = await fetchAll(supabase, 'employees', '*', { column: 'id', ascending: false })
   const employees = employeeRows.map(mapEmployee)
-
-  const taskRows = await fetchAll(supabase, 'tasks', '*', { column: 'id', ascending: false })
   const tasks = taskRows.map(mapTask)
-
-  const activityRows = await fetchAll(supabase, 'activity_logs', '*', { column: 'id', ascending: false })
   const activityLogs = activityRows.map(mapActivity)
-
-  const sessionRows = await fetchAll(supabase, 'tracker_sessions', '*', { column: 'id', ascending: false })
   const trackerSessions = sessionRows.map(mapSession)
-
-  const timerRows = await fetchAll(supabase, 'active_tracker_timers', '*', { column: 'id', ascending: false })
   const activeTrackerTimers = timerRows.map(mapTimer)
-
-  const notifRows = await fetchAll(supabase, 'notifications', '*', { column: 'id', ascending: false })
   const notifications = notifRows.map(mapNotification)
 
   return {

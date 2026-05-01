@@ -9,7 +9,19 @@ const binaryMimeTypes = [
 
 let handler
 
+function isHealthPath(req) {
+  if (String(req.method || '').toUpperCase() !== 'GET') return false
+  const path = String(req.url || '').split('?')[0]
+  return path === '/api/health' || path.endsWith('/api/health') || path === '/health'
+}
+
 module.exports = async (req, res) => {
+  // Hobby: 10s max — avoid loading all Supabase tables just for uptime checks.
+  if (isHealthPath(req)) {
+    res.status(200).json({ status: 'ok' })
+    return
+  }
+
   try {
     await ensureBootstrapped()
   } catch (err) {
