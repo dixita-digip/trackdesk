@@ -173,6 +173,63 @@ function getLatestTrackerInstaller() {
   return candidates[0]
 }
 
+async function sendTrackerInstaller(res) {
+  const latestInstaller = getLatestTrackerInstaller()
+  if (latestInstaller) {
+    return res.download(latestInstaller.fullPath, latestInstaller.name)
+  }
+
+  const remoteUrl = String(process.env.TRACKER_INSTALLER_URL || '').trim()
+  if (!remoteUrl) {
+    return res.status(404).json({
+      message:
+        'Tracker installer not found. Build the desktop app and add .exe/.msi under server/downloads (local), or set TRACKER_INSTALLER_URL on the server to a direct download link (e.g. GitHub Release asset).',
+    })
+  }
+
+  try {
+    const upstream = await fetch(remoteUrl, { redirect: 'follow' })
+    if (!upstream.ok) {
+      console.error('[tracker/download] upstream HTTP', upstream.status, remoteUrl)
+      return res.status(502).json({ message: 'Could not fetch tracker installer from configured URL.' })
+    }
+
+    const fallbackName = 'tracker-setup.exe'
+    const disp = upstream.headers.get('content-disposition')
+    if (disp) {
+      res.setHeader('Content-Disposition', disp)
+    } else {
+      try {
+        const base = path.basename(new URL(remoteUrl).pathname) || fallbackName
+        res.setHeader('Content-Disposition', `attachment; filename="${base}"`)
+      } catch {
+        res.setHeader('Content-Disposition', `attachment; filename="${fallbackName}"`)
+      }
+    }
+
+    const ct = upstream.headers.get('content-type')
+    if (ct) res.setHeader('Content-Type', ct)
+    else res.setHeader('Content-Type', 'application/octet-stream')
+
+    if (upstream.body) {
+      const nodeStream = Readable.fromWeb(upstream.body)
+      nodeStream.on('error', (err) => {
+        console.error('[tracker/download] stream error', err)
+        if (!res.headersSent) res.sendStatus(502)
+        else res.destroy(err)
+      })
+      nodeStream.pipe(res)
+      return
+    }
+
+    const buf = Buffer.from(await upstream.arrayBuffer())
+    return res.send(buf)
+  } catch (err) {
+    console.error('[tracker/download] remote fetch error', err)
+    return res.status(502).json({ message: 'Could not fetch tracker installer.' })
+  }
+}
+
 function toIsoDate(v) {
   if (!v) return ''
   const raw = String(v).trim()
@@ -455,9 +512,22 @@ let adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
 const DEFAULT_ADMIN_NAME = process.env.ADMIN_NAME || 'System Admin'
 const JWT_SECRET = String(process.env.JWT_SECRET || 'dev-only-change-me')
 const JWT_EXPIRES_IN = String(process.env.JWT_EXPIRES_IN || '7d')
+const TRACKER_DOWNLOAD_TOKEN_EXPIRES_IN = String(process.env.TRACKER_DOWNLOAD_TOKEN_EXPIRES_IN || '5m')
 
 function createAuthToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
+}
+
+function createTrackerInstallerDownloadToken(authPayload) {
+  return jwt.sign(
+    {
+      purpose: 'tracker-installer',
+      sub: authPayload?.sub,
+      email: authPayload?.email,
+    },
+    JWT_SECRET,
+    { expiresIn: TRACKER_DOWNLOAD_TOKEN_EXPIRES_IN },
+  )
 }
 
 function requireBearerAuth(req, res, next) {
@@ -579,70 +649,36 @@ app.post('/api/auth/change-password', requireBearerAuth, async (req, res) => {
   return res.json({ ok: true, message: 'Password changed successfully' })
 })
 
+app.post('/api/tracker/download-token', requireBearerAuth, (req, res) => {
+  const token = createTrackerInstallerDownloadToken(req.auth)
+  return res.json({ token })
+})
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
 })
 
 app.use('/api', (req, res, next) => {
-  if (req.path === '/auth/login' || req.path === '/health') return next()
+  if (req.path === '/auth/login' || req.path === '/health' || req.path === '/tracker/installer') return next()
   return requireBearerAuth(req, res, next)
 })
 
-app.get('/api/tracker/download', async (req, res) => {
-  const latestInstaller = getLatestTrackerInstaller()
-  if (latestInstaller) {
-    return res.download(latestInstaller.fullPath, latestInstaller.name)
-  }
-
-  const remoteUrl = String(process.env.TRACKER_INSTALLER_URL || '').trim()
-  if (!remoteUrl) {
-    return res.status(404).json({
-      message:
-        'Tracker installer not found. Build the desktop app and add .exe/.msi under server/downloads (local), or set TRACKER_INSTALLER_URL on the server to a direct download link (e.g. GitHub Release asset).',
-    })
-  }
-
+app.get('/api/tracker/installer', async (req, res) => {
+  const raw = String(req.query.token || '').trim()
+  if (!raw) return res.status(401).json({ message: 'Missing download token' })
   try {
-    const upstream = await fetch(remoteUrl, { redirect: 'follow' })
-    if (!upstream.ok) {
-      console.error('[tracker/download] upstream HTTP', upstream.status, remoteUrl)
-      return res.status(502).json({ message: 'Could not fetch tracker installer from configured URL.' })
+    const decoded = jwt.verify(raw, JWT_SECRET)
+    if (decoded.purpose !== 'tracker-installer') {
+      return res.status(403).json({ message: 'Invalid download token' })
     }
-
-    const fallbackName = 'tracker-setup.exe'
-    const disp = upstream.headers.get('content-disposition')
-    if (disp) {
-      res.setHeader('Content-Disposition', disp)
-    } else {
-      try {
-        const base = path.basename(new URL(remoteUrl).pathname) || fallbackName
-        res.setHeader('Content-Disposition', `attachment; filename="${base}"`)
-      } catch {
-        res.setHeader('Content-Disposition', `attachment; filename="${fallbackName}"`)
-      }
-    }
-
-    const ct = upstream.headers.get('content-type')
-    if (ct) res.setHeader('Content-Type', ct)
-    else res.setHeader('Content-Type', 'application/octet-stream')
-
-    if (upstream.body) {
-      const nodeStream = Readable.fromWeb(upstream.body)
-      nodeStream.on('error', (err) => {
-        console.error('[tracker/download] stream error', err)
-        if (!res.headersSent) res.sendStatus(502)
-        else res.destroy(err)
-      })
-      nodeStream.pipe(res)
-      return
-    }
-
-    const buf = Buffer.from(await upstream.arrayBuffer())
-    return res.send(buf)
-  } catch (err) {
-    console.error('[tracker/download] remote fetch error', err)
-    return res.status(502).json({ message: 'Could not fetch tracker installer.' })
+  } catch {
+    return res.status(401).json({ message: 'Invalid or expired download token' })
   }
+  return sendTrackerInstaller(res)
+})
+
+app.get('/api/tracker/download', async (req, res) => {
+  return sendTrackerInstaller(res)
 })
 
 app.post('/api/tracker/timer/start', async (req, res) => {

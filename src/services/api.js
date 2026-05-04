@@ -123,6 +123,12 @@ export async function changePassword(payload) {
   return data
 }
 
+/** Short-lived JWT used only with GET /tracker/installer — lets the browser stream the file instead of buffering via fetch+blob. */
+export async function createTrackerDownloadToken() {
+  const { data } = await api.post('/tracker/download-token')
+  return data.token
+}
+
 export async function getNotifications(params) {
   const { data } = await api.get('/notifications', { params })
   return data

@@ -75,6 +75,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import {
   API_BASE_URL,
   clearAuthToken,
+  createTrackerDownloadToken,
   deleteNotifications,
   getEmployees,
   getNotifications,
@@ -2180,37 +2181,27 @@ function App() {
         setNotice({ type: 'error', message: 'Sign in to download the tracker app.' })
         return
       }
-      const response = await fetch(`${API_BASE_URL}/tracker/download`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!response.ok) {
-        let message = 'Failed to download tracker app'
-        try {
-          const payload = await response.json()
-          if (payload?.message) message = payload.message
-        } catch {
-          // Ignore JSON parse errors and use default message.
-        }
-        throw new Error(message)
-      }
 
-      const blob = await response.blob()
-      const contentDisposition = String(response.headers.get('content-disposition') || '')
-      const utf8Name = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
-      const plainName = contentDisposition.match(/filename="?([^"]+)"?/i)?.[1]
-      const downloadName = decodeURIComponent(utf8Name || plainName || 'tracker-setup.exe')
-      const url = window.URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = downloadName
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
-      window.URL.revokeObjectURL(url)
+      const dlToken = await createTrackerDownloadToken()
+
+      const base = API_BASE_URL.replace(/\/+$/, '')
+      const queryPath = `${base}/tracker/installer?token=${encodeURIComponent(dlToken)}`
+      const installerUrl = /^https?:\/\//i.test(base)
+        ? queryPath
+        : new URL(queryPath, window.location.origin).href
+
+      const iframe = document.createElement('iframe')
+      iframe.style.display = 'none'
+      iframe.setAttribute('aria-hidden', 'true')
+      document.body.appendChild(iframe)
+      iframe.src = installerUrl
+      setTimeout(() => iframe.remove(), 10 * 60 * 1000)
     } catch (error) {
+      const message =
+        error?.response?.data?.message || error?.message || 'Unable to download tracker app'
       setNotice({
         type: 'error',
-        message: error?.message || 'Unable to download tracker app',
+        message,
       })
     }
   }
