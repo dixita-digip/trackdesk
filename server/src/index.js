@@ -476,6 +476,17 @@ function requireBearerAuth(req, res, next) {
   }
 }
 
+/** Load Supabase state before any route runs (required for Vercel serverless cold starts). */
+app.use(async (req, res, next) => {
+  try {
+    await ensureBootstrapped()
+    next()
+  } catch (err) {
+    console.error('Failed to connect to Supabase or load data:', err.message || err)
+    return res.status(503).json({ message: 'Service unavailable' })
+  }
+})
+
 app.post('/api/auth/login', (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase()
   const password = String(req.body?.password || '')
@@ -1400,3 +1411,6 @@ async function start() {
 if (require.main === module) {
   start()
 }
+
+/** Vercel runs this module as one serverless function; export the Express app (see Vercel Express guide). */
+module.exports = app

@@ -312,6 +312,7 @@ function EmployeesPage({ employees, tasks = [], setEmployees, setNotice }) {
                           '&:focus-visible': { boxShadow: '0 0 0 2px rgba(124,58,237,0.45)' },
                           '&:hover .emp-name': { color: '#7c3aed', textDecoration: 'underline' },
                         }}
+                        style={{alignItems: 'center'}}
                       >
                         <Avatar
                           sx={{

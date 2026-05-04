@@ -2739,7 +2739,7 @@ function App() {
                                     }}
                                   >
                                     <TableCell sx={{ py: 1.35, px: 1.75 }}>
-                                      <Stack direction="row" spacing={1.5} alignItems="center">
+                                      <Stack direction="row" spacing={1.5} alignItems="center" style={{alignItems: 'center'}}>
                                         <Avatar
                                           sx={{
                                             width: 36,
@@ -2776,7 +2776,7 @@ function App() {
                                     <TableCell sx={{ py: 1.35, px: 1.75, fontWeight: 800, color: '#059669', fontSize: '0.83rem' }}>{row.completed}</TableCell>
                                     <TableCell sx={{ py: 1.35, px: 1.75, fontWeight: 700, color: '#475569', fontSize: '0.83rem' }}>{row.active}</TableCell>
                                     <TableCell sx={{ py: 1.35, px: 1.75 }}>
-                                      <Stack direction="row" spacing={1} alignItems="center">
+                                      <Stack direction="row" spacing={1} alignItems="center" style={{alignItems: 'center'}}>
                                         <LinearProgress
                                           variant="determinate"
                                           value={Math.min(Number.parseInt(row.completion, 10), 100)}
