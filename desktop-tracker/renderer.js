@@ -13,7 +13,6 @@ const stopBtn = document.getElementById('stopBtn')
 const statusEl = document.getElementById('status')
 const settingsPanel = document.getElementById('settingsPanel')
 const projectTitleEl = document.getElementById('currentProjectTitle')
-const projectSearchInput = document.getElementById('projectSearch')
 const projectList = document.getElementById('projectList')
 const lastUpdatedEl = document.getElementById('lastUpdated')
 const orgTitleEl = document.getElementById('orgTitle')
@@ -29,6 +28,11 @@ const loginScreen = document.getElementById('loginScreen')
 const entranceScreen = document.getElementById('entranceScreen')
 const loginFormScreen = document.getElementById('loginFormScreen')
 const trackerContent = document.getElementById('trackerContent')
+const trackerLoadingOverlay = document.getElementById('trackerLoadingOverlay')
+const idleWarningModal = document.getElementById('idleWarningModal')
+const idleWarningMessage = document.getElementById('idleWarningMessage')
+const idleResumeBtn = document.getElementById('idleResumeBtn')
+const idleDismissBtn = document.getElementById('idleDismissBtn')
 
 let timerId = null
 let startTime = null
@@ -38,6 +42,48 @@ let activeSessionId = null
 let taskRows = []
 let projectRows = []
 let authUser = null
+let trackerBootstrapComplete = false
+
+function showTrackerLoading() {
+  if (trackerLoadingOverlay) trackerLoadingOverlay.classList.remove('hidden')
+}
+
+function hideTrackerLoading() {
+  if (trackerLoadingOverlay) trackerLoadingOverlay.classList.add('hidden')
+}
+
+function hideIdleWarningModal() {
+  if (idleWarningModal) idleWarningModal.classList.add('hidden')
+  if (window.trackerApp?.notifyIdleModalClosed) window.trackerApp.notifyIdleModalClosed()
+}
+
+function showIdleWarningModal(detail) {
+  if (!idleWarningModal || !idleWarningMessage) return
+  const th = Math.max(1, Math.floor(Number(detail?.thresholdSeconds) || 60))
+  let phrase
+  if (th < 90) {
+    phrase = 'one minute'
+  } else if (th < 3600) {
+    const m = Math.round(th / 60)
+    phrase = `${m} minutes`
+  } else {
+    const h = Math.round(th / 3600)
+    phrase = `${h} hour${h === 1 ? '' : 's'}`
+  }
+  idleWarningMessage.textContent = `No keyboard or mouse activity was detected for ${phrase}. Your running timer has been stopped automatically.`
+  idleWarningModal.classList.remove('hidden')
+  idleResumeBtn?.focus()
+}
+
+function pushTimerRunningForIdle() {
+  if (window.trackerApp?.setTimerRunningForIdle) {
+    try {
+      window.trackerApp.setTimerRunningForIdle(Boolean(timerId))
+    } catch {
+      /* ignore */
+    }
+  }
+}
 
 function normalizeLower(value) {
   return String(value || '').trim().toLowerCase()
@@ -92,6 +138,13 @@ function getAuthHeaders(includeJson = true) {
   return headers
 }
 
+function pushSyncCredentials() {
+  if (!window.trackerApp?.setSyncCredentials) return Promise.resolve()
+  const apiBase = getApiBase()
+  const token = String(authUser?.token || '').trim()
+  return window.trackerApp.setSyncCredentials({ apiBase, token })
+}
+
 function restoreSettings() {
   apiBaseInput.value = localStorage.getItem('tracker-api-base') || 'http://localhost:5000/api'
   userIdInput.value = localStorage.getItem('tracker-user-id') || ''
@@ -121,6 +174,7 @@ function restoreSettings() {
     authUser = null
   }
   applyAuthState()
+  void pushSyncCredentials()
 }
 
 function applyAuthState() {
@@ -140,6 +194,10 @@ function applyAuthState() {
     loginScreen.classList.remove('hidden')
     trackerContent.classList.add('hidden')
     showEntrance()
+    trackerBootstrapComplete = false
+    hideTrackerLoading()
+    hideIdleWarningModal()
+    pushTimerRunningForIdle()
   }
 
   loginBtn.disabled = false
@@ -155,7 +213,6 @@ function applyAuthState() {
   }
   authEmailInput.disabled = false
   authPasswordInput.disabled = false
-  projectSearchInput.disabled = !signedIn
   projectSelectInput.disabled = !signedIn
   if (!signedIn) {
     taskSelectInput.disabled = true
@@ -194,6 +251,7 @@ async function loginTrackerUser() {
     applyAuthState()
     persistSettings()
     await refreshProjects(true)
+    void pushSyncCredentials()
     setStatus('Login successful.')
   } catch (error) {
     setStatus(error.message || 'Login failed', true)
@@ -206,6 +264,8 @@ async function logoutTrackerUser() {
     return
   }
   authUser = null
+  trackerBootstrapComplete = false
+  hideTrackerLoading()
   authPasswordInput.value = ''
   projectNameInput.value = ''
   taskIdInput.value = ''
@@ -214,6 +274,7 @@ async function logoutTrackerUser() {
   if (taskSelectInput) taskSelectInput.value = ''
   applyAuthState()
   persistSettings()
+  void pushSyncCredentials()
   setStatus('Logged out')
 }
 
@@ -383,6 +444,8 @@ async function refreshProjects(showErrors = false) {
   const apiBase = getApiBase()
   if (!authUser?.email) return
   if (!apiBase) return
+  const showOverlay = !trackerBootstrapComplete && Boolean(authUser?.email)
+  if (showOverlay) showTrackerLoading()
   try {
     const [projectRes, taskRes, employeeRes] = await Promise.all([
       fetch(`${apiBase}/projects`, { headers: getAuthHeaders(false) }),
@@ -451,6 +514,9 @@ async function refreshProjects(showErrors = false) {
     updateLastUpdated()
   } catch (error) {
     if (showErrors) setStatus(error.message || 'Failed to fetch projects', true)
+  } finally {
+    if (!trackerBootstrapComplete) trackerBootstrapComplete = true
+    if (showOverlay) hideTrackerLoading()
   }
 }
 
@@ -472,6 +538,7 @@ async function startTimer() {
       const sec = (Date.now() - startTime.getTime()) / 1000
       timerValue.textContent = formatDuration(sec)
     }, 250)
+    pushTimerRunningForIdle()
   } catch (error) {
     setStatus(error.message || 'Could not start timer', true)
   }
@@ -504,6 +571,7 @@ async function stopTimerAndSync() {
   }
 
   updateLastUpdated()
+  pushTimerRunningForIdle()
 }
 
 function setActiveTask(taskId) {
@@ -544,16 +612,9 @@ projectList.addEventListener('click', (event) => {
   applyTaskSelectionById(taskId)
   persistSettings()
 })
-projectSearchInput.addEventListener('input', () => {
-  const term = projectSearchInput.value.trim().toLowerCase()
-  const items = projectList.querySelectorAll('.project-item')
-  items.forEach((item) => {
-    const name = `${String(item.dataset.project || '')} ${String(item.dataset.taskTitle || '')}`.toLowerCase()
-    item.style.display = !term || name.includes(term) ? 'flex' : 'none'
-  })
-})
 apiBaseInput.addEventListener('change', async () => {
   persistSettings()
+  void pushSyncCredentials()
   await refreshProjects(true)
 })
 userNameInput.addEventListener('change', persistSettings)
@@ -591,6 +652,50 @@ if (headerLoginBtn) {
   })
 }
 if (logoutBtn) logoutBtn.addEventListener('click', logoutTrackerUser)
+if (idleResumeBtn) {
+  idleResumeBtn.addEventListener('click', async () => {
+    hideIdleWarningModal()
+    if (timerId) return
+    if (window.trackerApp?.idleSnooze) window.trackerApp.idleSnooze(90_000)
+    await startTimer()
+  })
+}
+if (idleDismissBtn) {
+  idleDismissBtn.addEventListener('click', () => {
+    hideIdleWarningModal()
+  })
+}
+
+document.addEventListener('keydown', (event) => {
+  if (!idleWarningModal || idleWarningModal.classList.contains('hidden')) return
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    hideIdleWarningModal()
+  }
+})
+
+if (typeof window !== 'undefined') {
+  function registerSystemIdleListener() {
+    if (typeof window.trackerApp?.onSystemIdle === 'function') {
+      window.trackerApp.onSystemIdle(async () => {
+        if (timerId) await stopTimerAndSync()
+      })
+    } else {
+      console.warn('[TrackDesk] trackerApp.onSystemIdle missing — idle stop will not run')
+    }
+    if (typeof window.trackerApp?.onIdleOverlayResume === 'function') {
+      window.trackerApp.onIdleOverlayResume(async () => {
+        if (timerId) return
+        await startTimer()
+      })
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', registerSystemIdleListener, { once: true })
+  } else {
+    registerSystemIdleListener()
+  }
+}
 if (authPasswordInput) {
   authPasswordInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') loginTrackerUser()

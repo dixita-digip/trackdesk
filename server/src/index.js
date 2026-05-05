@@ -77,7 +77,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }))
 
 const { createSupabaseClient, loadAppState, createSaveDb } = require('./db-supabase')
 
@@ -145,6 +145,53 @@ async function ensureBootstrapped() {
     })
   }
   return bootstrapPromise
+}
+
+const SCREEN_CAPTURES_MAX_PER_EMPLOYEE = 120
+const SCREEN_CAPTURE_MAX_BATCH = 8
+const SCREEN_CAPTURE_MAX_B64_CHARS = 6_000_000
+
+function stripDataUrlBase64(raw) {
+  const s = String(raw || '').trim()
+  if (!s) return ''
+  const marker = 'base64,'
+  const idx = s.indexOf(marker)
+  if (s.startsWith('data:') && idx !== -1) return s.slice(idx + marker.length)
+  return s
+}
+
+function isAllowedImageUrl(url) {
+  try {
+    const u = new URL(String(url || '').trim())
+    return u.protocol === 'https:' && String(url).length <= 2048
+  } catch {
+    return false
+  }
+}
+
+function cloudinaryListPreviewUrl(url) {
+  const s = String(url || '').trim()
+  if (!s.includes('res.cloudinary.com')) return url
+  const marker = '/image/upload/'
+  const idx = s.indexOf(marker)
+  if (idx === -1) return url
+  const tail = s.slice(idx + marker.length)
+  const firstSeg = tail.split('/')[0]
+  if (firstSeg.includes(',') || firstSeg.startsWith('c_') || /^w_\d/.test(firstSeg)) return url
+  return s.slice(0, idx + marker.length) + 'c_limit,w_800,q_auto:good,f_auto/' + tail
+}
+
+async function pruneTrackerScreenCaptures(supabase, employeeId) {
+  const keep = SCREEN_CAPTURES_MAX_PER_EMPLOYEE
+  const { data: rows, error } = await supabase
+    .from('tracker_screen_captures')
+    .select('id')
+    .eq('employee_id', employeeId)
+    .order('captured_at', { ascending: false })
+  if (error || !rows?.length || rows.length <= keep) return
+  const toDrop = rows.slice(keep).map((r) => r.id)
+  if (!toDrop.length) return
+  await supabase.from('tracker_screen_captures').delete().in('id', toDrop)
 }
 
 function getLatestTrackerInstaller() {
@@ -828,6 +875,158 @@ app.post('/api/tracker/sessions', async (req, res) => {
 
 app.get('/api/tracker/sessions', (req, res) => {
   res.json(trackerSessions)
+})
+
+app.post('/api/tracker/screenshots', async (req, res) => {
+  const sub = String(req.auth?.sub || '')
+  if (sub === 'admin') {
+    return res.status(403).json({
+      message: 'Sign in with an employee account in the desktop tracker to upload screen captures.',
+    })
+  }
+  const employeeId = Number(sub)
+  if (!Number.isFinite(employeeId) || employeeId < 1) {
+    return res.status(400).json({ message: 'Invalid employee session' })
+  }
+  const emp = employees.find((e) => e.id === employeeId)
+  if (!emp) return res.status(404).json({ message: 'Employee not found' })
+
+  const captures = req.body?.captures
+  if (!Array.isArray(captures) || captures.length === 0) {
+    return res.status(400).json({ message: 'captures must be a non-empty array' })
+  }
+  if (captures.length > SCREEN_CAPTURE_MAX_BATCH) {
+    return res.status(400).json({ message: `At most ${SCREEN_CAPTURE_MAX_BATCH} images per request` })
+  }
+
+  const supabase = createSupabaseClient()
+  const capturedAtBatch = new Date().toISOString()
+  const rows = []
+  for (let i = 0; i < captures.length; i += 1) {
+    const c = captures[i] || {}
+    const displayIndex = Number.isFinite(Number(c.displayIndex)) ? Number(c.displayIndex) : i
+    const imageUrlRaw = typeof c.imageUrl === 'string' ? c.imageUrl.trim() : ''
+    const hasUrl = imageUrlRaw && isAllowedImageUrl(imageUrlRaw)
+    const imageBase64 = stripDataUrlBase64(c.imageBase64)
+    if (imageBase64 && imageBase64.length > SCREEN_CAPTURE_MAX_B64_CHARS) {
+      return res.status(400).json({ message: 'Invalid or oversized image payload' })
+    }
+    const hasB64 = Boolean(imageBase64)
+
+    if (!hasUrl && !hasB64) {
+      return res.status(400).json({ message: 'Each capture needs a valid imageUrl (https) or imageBase64' })
+    }
+    let capturedAt = capturedAtBatch
+    if (c.capturedAt) {
+      const parsed = new Date(c.capturedAt)
+      if (Number.isNaN(parsed.getTime())) return res.status(400).json({ message: 'Invalid capturedAt' })
+      capturedAt = parsed.toISOString()
+    }
+    rows.push({
+      user_id: String(employeeId),
+      employee_id: employeeId,
+      display_index: displayIndex,
+      mime_type: 'image/png',
+      file_url: hasUrl ? imageUrlRaw : null,
+      image_base64: hasUrl ? null : imageBase64,
+      captured_at: capturedAt,
+    })
+  }
+
+  const { error } = await supabase.from('tracker_screen_captures').insert(rows)
+  if (error) {
+    console.error('tracker_screen_captures insert:', error)
+    const missingTable = error.code === '42P01' || String(error.message || '').includes('tracker_screen_captures')
+    return res.status(500).json({
+      message: missingTable
+        ? 'Screen capture storage is not configured. Add the tracker_screen_captures table (see server/supabase/schema.sql).'
+        : 'Failed to save screen captures',
+    })
+  }
+  await pruneTrackerScreenCaptures(supabase, employeeId)
+  return res.status(201).json({ saved: rows.length })
+})
+
+app.get('/api/employees/:employeeId/screen-captures', async (req, res) => {
+  const employeeId = Number(req.params.employeeId)
+  if (!Number.isFinite(employeeId) || employeeId < 1) {
+    return res.status(400).json({ message: 'Invalid employee id' })
+  }
+  const role = String(req.auth?.role || '')
+  const sub = String(req.auth?.sub || '')
+  const isAdmin = role === 'Admin' || sub === 'admin'
+  const isSelf = Number(sub) === employeeId
+  if (!isAdmin && !isSelf) {
+    return res.status(403).json({ message: 'Forbidden' })
+  }
+
+  const pageSize = Math.min(24, Math.max(1, Number(req.query.pageSize) || 6))
+  const page = Math.max(1, Number(req.query.page) || 1)
+  const offset = (page - 1) * pageSize
+
+  const supabase = createSupabaseClient()
+  const countQuery = () =>
+    supabase
+      .from('tracker_screen_captures')
+      .select('*', { count: 'exact', head: true })
+      .eq('employee_id', employeeId)
+
+  const { count: totalRaw, error: countErr } = await countQuery()
+  if (countErr) {
+    console.error('tracker_screen_captures count:', countErr)
+    const missingTable = countErr.code === '42P01' || String(countErr.message || '').includes('tracker_screen_captures')
+    return res.status(500).json({
+      message: missingTable
+        ? 'Screen capture storage is not configured.'
+        : 'Failed to load screen captures',
+    })
+  }
+
+  const total = Number(totalRaw) || 0
+
+  const { data, error } = await supabase
+    .from('tracker_screen_captures')
+    .select('id, display_index, captured_at, mime_type, image_base64, file_url')
+    .eq('employee_id', employeeId)
+    .order('captured_at', { ascending: false })
+    .range(offset, offset + pageSize - 1)
+
+  if (error) {
+    console.error('tracker_screen_captures select:', error)
+    const missingTable = error.code === '42P01' || String(error.message || '').includes('tracker_screen_captures')
+    return res.status(500).json({
+      message: missingTable
+        ? 'Screen capture storage is not configured.'
+        : 'Failed to load screen captures',
+    })
+  }
+
+  const items = (data || [])
+    .map((row) => {
+      const base = {
+        id: String(row.id),
+        displayIndex: row.display_index,
+        capturedAt: row.captured_at,
+      }
+      if (row.file_url) {
+        return { ...base, imageUrl: cloudinaryListPreviewUrl(row.file_url) }
+      }
+      if (row.image_base64) {
+        return {
+          ...base,
+          dataUrl: `data:${row.mime_type || 'image/png'};base64,${row.image_base64}`,
+        }
+      }
+      return null
+    })
+    .filter(Boolean)
+
+  return res.json({
+    items,
+    total,
+    page,
+    pageSize,
+  })
 })
 
 app.get('/api/systems', (req, res) => {

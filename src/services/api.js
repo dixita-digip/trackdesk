@@ -78,6 +78,11 @@ export async function getEmployees() {
   return data
 }
 
+export async function getEmployeeScreenCaptures(employeeId, params = {}) {
+  const { data } = await api.get(`/employees/${employeeId}/screen-captures`, { params })
+  return data
+}
+
 export async function createEmployee(payload) {
   const { data } = await api.post('/employees', payload)
   return data

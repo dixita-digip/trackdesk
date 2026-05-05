@@ -23,10 +23,16 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
-    }
+    },
+    "asarUnpack": [
+      "win-idle.ps1"
+    ]
   },
   "devDependencies": {
     "electron": "^37.2.4",
     "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
   }
 }

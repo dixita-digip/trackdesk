@@ -36,6 +36,7 @@ import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlin
 import PendingActionsOutlinedIcon from '@mui/icons-material/PendingActionsOutlined'
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined'
 import { getProjects, getReports, getTimesheetReport } from './services/api'
+import { ReportsPerformanceSkeleton } from './pageSkeletons.jsx'
 
 function formatDdMmYyyy(iso) {
   if (!iso || iso === '—') return '—'
@@ -630,9 +631,7 @@ export default function ReportsPage({ canViewReports, tasks = [], employees = []
       {tab === 2 && (
         <>
           {summaryLoading && summaryRows.length === 0 ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-              <CircularProgress sx={{ color: '#7c3aed' }} />
-            </Box>
+            <ReportsPerformanceSkeleton />
           ) : (
             <>
               <Card

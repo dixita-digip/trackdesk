@@ -124,6 +124,23 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   created_at timestamptz NOT NULL
 );
 
+-- Desktop tracker screen captures (append-only; not part of persistFullState snapshot).
+CREATE TABLE IF NOT EXISTS public.tracker_screen_captures (
+  id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  user_id text NOT NULL,
+  employee_id integer NOT NULL REFERENCES public.employees (id) ON DELETE CASCADE,
+  display_index integer NOT NULL DEFAULT 0,
+  mime_type text NOT NULL DEFAULT 'image/png',
+  image_base64 text,
+  file_url text,
+  captured_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT tracker_screen_captures_image_chk CHECK (file_url IS NOT NULL OR image_base64 IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS tracker_screen_captures_employee_captured_idx
+  ON public.tracker_screen_captures (employee_id, captured_at DESC);
+
 ALTER TABLE public.app_counters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.systems ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
@@ -134,3 +151,4 @@ ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tracker_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.active_tracker_timers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tracker_screen_captures ENABLE ROW LEVEL SECURITY;

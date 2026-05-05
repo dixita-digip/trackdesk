@@ -101,6 +101,7 @@ import EmployeesPage from './EmployeesPage.jsx'
 import ReportsPage from './ReportsPage.jsx'
 import NotificationsPage from './NotificationsPage.jsx'
 import EmployeeDetailPage from './EmployeeDetailPage.jsx'
+import { DashboardPageSkeleton, EmployeesModuleSkeleton } from './pageSkeletons.jsx'
 import { notify } from './notify.js'
 
 function HelpSupportPage({ setNotice, onDownloadTracker }) {
@@ -1855,6 +1856,9 @@ function App() {
   const [systems, setSystems] = useState([])
   const [tasks, setTasks] = useState([])
   const [employees, setEmployees] = useState([])
+  const [employeesFetchSettled, setEmployeesFetchSettled] = useState(false)
+  const [tasksFetchSettled, setTasksFetchSettled] = useState(false)
+  const [systemsFetchSettled, setSystemsFetchSettled] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [notificationsLoading, setNotificationsLoading] = useState(false)
   const setNotice = useCallback((payload) => {
@@ -1955,23 +1959,37 @@ function App() {
     return employees.find((e) => String(e.id) === m[1]) || null
   }, [location.pathname, employees])
 
+  const dashboardBootstrapReady = useMemo(
+    () => tasksFetchSettled && employeesFetchSettled && systemsFetchSettled,
+    [tasksFetchSettled, employeesFetchSettled, systemsFetchSettled],
+  )
+
   useEffect(() => {
     let mounted = true
     if (auth.signedIn) {
+      setEmployeesFetchSettled(false)
+      setTasksFetchSettled(false)
+      setSystemsFetchSettled(false)
       getSystems()
         .then((data) => { if (mounted) setSystems(Array.isArray(data) ? data : []) })
         .catch((err) => { if (mounted) setNotice({ type: 'error', message: err.message }) })
+        .finally(() => { if (mounted) setSystemsFetchSettled(true) })
       getTasks()
         .then((data) => { if (mounted) setTasks(Array.isArray(data) ? data : []) })
         .catch((err) => { if (mounted) setNotice({ type: 'error', message: err.message }) })
+        .finally(() => { if (mounted) setTasksFetchSettled(true) })
       getEmployees()
         .then((data) => { if (mounted) setEmployees(Array.isArray(data) ? data : []) })
         .catch((err) => { if (mounted) setNotice({ type: 'error', message: err.message }) })
+        .finally(() => { if (mounted) setEmployeesFetchSettled(true) })
       getNotifications({ limit: 100 })
         .then((data) => { if (mounted) setNotifications(Array.isArray(data) ? data : []) })
         .catch((err) => { if (mounted) setNotice({ type: 'error', message: err.message }) })
     } else if (mounted) {
       setNotifications([])
+      setEmployeesFetchSettled(false)
+      setTasksFetchSettled(false)
+      setSystemsFetchSettled(false)
     }
     return () => { mounted = false }
   }, [auth.signedIn])
@@ -2382,6 +2400,7 @@ function App() {
                   element={(
                     <EmployeeDetailPage
                       employees={employees}
+                      employeesFetchSettled={employeesFetchSettled}
                       tasks={tasks}
                       setNotice={setNotice}
                       userRole={auth.role}
@@ -2429,7 +2448,11 @@ function App() {
                     />
                   ) : selectedNav === 'Employees' ? (
                     canManageEmployees(auth.role) ? (
-                      <EmployeesPage employees={employees} tasks={tasks} setEmployees={setEmployees} setNotice={setNotice} />
+                      !employeesFetchSettled ? (
+                        <EmployeesModuleSkeleton />
+                      ) : (
+                        <EmployeesPage employees={employees} tasks={tasks} setEmployees={setEmployees} setNotice={setNotice} />
+                      )
                     ) : (
                       <Card sx={{ borderRadius: '16px', border: '1px solid rgba(245,158,11,0.35)', boxShadow: 'var(--shadow-xs)' }}>
                         <CardContent sx={{ p: 3 }}>
@@ -2456,6 +2479,8 @@ function App() {
                     />
                   ) : selectedNav === 'Help & Support' ? (
                     <HelpSupportPage setNotice={setNotice} onDownloadTracker={handleDownloadTracker} />
+                  ) : !dashboardBootstrapReady ? (
+                    <DashboardPageSkeleton />
                   ) : (
                     <>
                       {/* Welcome Banner */}

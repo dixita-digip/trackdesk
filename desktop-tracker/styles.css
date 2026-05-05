@@ -1,5 +1,9 @@
 * { box-sizing: border-box; }
 
+html {
+  color-scheme: light;
+}
+
 body {
   margin: 0;
   font-family: "Segoe UI", Arial, sans-serif;
@@ -138,6 +142,7 @@ body {
   padding: 0 12px 10px;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .tracker-hero {
@@ -172,6 +177,50 @@ body {
   margin-left: -12px;
   margin-right: -12px;
 }
+
+.tracker-loading-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 54px;
+  bottom: 0;
+  padding: 0 0 8px;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(244, 247, 255, 0.94);
+  backdrop-filter: blur(3px);
+  overflow: hidden;
+}
+
+.tracker-loading-overlay.hidden {
+  display: none !important;
+}
+
+.tracker-skel-block {
+  border-radius: 12px;
+  border: 1px solid rgba(124, 58, 237, 0.08);
+  background: linear-gradient(
+    90deg,
+    rgba(226, 232, 240, 0.85) 0%,
+    rgba(241, 245, 249, 0.95) 45%,
+    rgba(226, 232, 240, 0.85) 100%
+  );
+  background-size: 200% 100%;
+  animation: tracker-shimmer 1.15s ease-in-out infinite;
+}
+
+@keyframes tracker-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.tracker-skel-selectors { min-height: 72px; flex-shrink: 0; }
+.tracker-skel-hero { min-height: 84px; flex-shrink: 0; }
+.tracker-skel-timer { min-height: 142px; flex-shrink: 0; }
+.tracker-skel-listhead { min-height: 26px; width: 72%; flex-shrink: 0; }
+.tracker-skel-row { min-height: 44px; flex-shrink: 0; }
 
 .header-actions {
   display: flex;
@@ -267,27 +316,6 @@ body {
   font-weight: 600;
 }
 
-.search-row {
-  margin: 8px 0;
-  height: 36px;
-  border: 1px solid rgba(124, 58, 237, 0.16);
-  border-radius: 12px;
-  background: rgba(255,255,255,0.85);
-  display: flex;
-  align-items: center;
-  padding: 0 10px;
-  box-shadow: 0 10px 20px rgba(30, 27, 75, 0.06);
-  transition: background 0.2s ease, box-shadow 0.2s ease;
-}
-
-.search-row:focus-within {
-  background: #ffffff;
-  box-shadow: inset 0 -1px 0 rgba(124, 58, 237, 0.25);
-}
-
-.search-icon { color: #7c3aed; margin-right: 6px; }
-.search-row input { border: none; outline: none; width: 100%; font-size: 12px; color: #334155; background: transparent; }
-
 .auth-state {
   font-size: 11px;
   color: #4a5871;
@@ -334,11 +362,15 @@ body {
 }
 
 .selector-row {
-  margin: 6px 0 14px;
+  margin: 0 0 10px;
+  padding: 10px 10px 12px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  border-top: none;
+  border: 1px solid rgba(124, 58, 237, 0.10);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
+  box-shadow: 0 8px 20px rgba(30, 27, 75, 0.06);
 }
 
 .selector-row label {
@@ -477,3 +509,162 @@ body {
 .sync-btn { width: 100%; margin-top: 5px; height: 32px; border: none; border-radius: 6px; background: #e14e57; color: #fff; font-weight: 600; cursor: pointer; }
 .sync-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .hidden { display: none; }
+
+/* Inactivity — modal style: white card, grey scrim, orange accent (reference UI) */
+.idle-warning-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  color-scheme: light;
+  forced-color-adjust: none;
+}
+
+.idle-warning-modal.hidden {
+  display: none !important;
+}
+
+.idle-warning-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(55, 65, 81, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.idle-warning-shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.idle-warning-dialog {
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 20px 22px 16px;
+  color: #0f172a;
+  font-family: "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
+  forced-color-adjust: none;
+}
+
+.idle-warning-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.idle-warning-warn-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffedd5;
+  border: 1px solid #fdba74;
+  color: #ea580c;
+}
+
+.idle-warning-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.idle-warning-body {
+  margin-bottom: 14px;
+}
+
+.idle-warning-message {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 400;
+  color: #0f172a;
+}
+
+.idle-warning-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 400;
+  color: #64748b;
+}
+
+.idle-warning-actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.idle-btn {
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+  border: none;
+  forced-color-adjust: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.idle-btn:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}
+
+.idle-btn-primary {
+  background: #f97316;
+  color: #ffffff;
+  border: 1px solid transparent;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35);
+}
+
+.idle-btn-primary:hover {
+  background: #ea580c;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4);
+  transform: translateY(-1px);
+}
+
+.idle-btn-primary:active {
+  transform: translateY(0);
+  background: #c2410c;
+}
+
+.idle-btn-secondary {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.idle-btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.idle-btn-secondary:active {
+  background: #f1f5f9;
+}

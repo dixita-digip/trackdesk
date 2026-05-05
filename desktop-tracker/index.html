@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
     <title>TrackDesk Tracker</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -52,6 +53,31 @@
           </div>
         </section>
 
+        <div id="trackerLoadingOverlay" class="tracker-loading-overlay hidden" aria-hidden="true">
+          <div class="tracker-skel-block tracker-skel-selectors"></div>
+          <div class="tracker-skel-block tracker-skel-hero"></div>
+          <div class="tracker-skel-block tracker-skel-timer"></div>
+          <div class="tracker-skel-block tracker-skel-listhead"></div>
+          <div class="tracker-skel-block tracker-skel-row"></div>
+          <div class="tracker-skel-block tracker-skel-row"></div>
+          <div class="tracker-skel-block tracker-skel-row"></div>
+        </div>
+
+        <section class="selector-row">
+          <label>
+            Select Project
+            <select id="projectSelect">
+              <option value="">Select project</option>
+            </select>
+          </label>
+          <label>
+            Select Task
+            <select id="taskSelect">
+              <option value="">Select project first</option>
+            </select>
+          </label>
+        </section>
+
         <section class="tracker-hero">
           <img src="./login-illustration.png" alt="Tracker workspace" />
         </section>
@@ -64,26 +90,6 @@
           <span>Multiple limits</span>
           <span id="todayTime">Today: 0:00</span>
         </div>
-      </section>
-
-      <section class="search-row">
-        <span class="search-icon">⌕</span>
-        <input id="projectSearch" type="text" placeholder="Search projects" />
-      </section>
-
-      <section class="selector-row">
-        <label>
-          Select Project
-          <select id="projectSelect">
-            <option value="">Select project</option>
-          </select>
-        </label>
-        <label>
-          Select Task
-          <select id="taskSelect">
-            <option value="">Select project first</option>
-          </select>
-        </label>
       </section>
 
       <section class="list-header">
@@ -127,6 +133,32 @@
       </section>
       </section>
     </main>
+
+    <div id="idleWarningModal" class="idle-warning-modal hidden" role="dialog" aria-modal="true" aria-labelledby="idleWarningTitle">
+      <div class="idle-warning-backdrop" aria-hidden="true"></div>
+      <div class="idle-warning-shell">
+        <div class="idle-warning-dialog">
+          <div class="idle-warning-header">
+            <div class="idle-warning-warn-icon" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+              </svg>
+            </div>
+            <h2 id="idleWarningTitle" class="idle-warning-title">Time Tracking Paused</h2>
+          </div>
+          <div class="idle-warning-body">
+            <p id="idleWarningMessage" class="idle-warning-message"></p>
+            <p id="idleWarningHint" class="idle-warning-hint">
+              Click Resume Time to continue tracking, or Dismiss to keep the current entry saved.
+            </p>
+          </div>
+          <div class="idle-warning-actions">
+            <button type="button" id="idleDismissBtn" class="idle-btn idle-btn-secondary">Dismiss</button>
+            <button type="button" id="idleResumeBtn" class="idle-btn idle-btn-primary">Resume Time</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script src="./renderer.js"></script>
   </body>

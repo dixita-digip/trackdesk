@@ -5,6 +5,7 @@ import {
   Typography,
   Stack,
   Button,
+  ButtonBase,
   Card,
   Table,
   TableHead,
@@ -37,6 +38,7 @@ import { createEmployee, updateEmployee, deleteEmployee } from './services/api'
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 
 
 const TEAM_ROW_AVATAR_COLORS = [
@@ -47,6 +49,102 @@ const TEAM_ROW_AVATAR_COLORS = [
   '#ec4899',
   '#f43f5e',
 ]
+
+/** Same visual language as employee profile “not found” — horizontal hero inside the table card. */
+function TeamTableEmptyState({ onAddEmployee }) {
+  const Illustration = GroupsOutlinedIcon
+  return (
+    <TableRow>
+      <TableCell colSpan={7} sx={{ p: 0, border: 0, verticalAlign: 'top' }}>
+        <Box
+          sx={{
+            mx: { xs: 1.5, sm: 2 },
+            my: 2,
+            borderRadius: '18px',
+            border: '1px solid rgba(124, 58, 237, 0.1)',
+            boxShadow: '0 4px 24px rgba(30, 27, 75, 0.06), 0 0 0 1px rgba(255,255,255,0.8) inset',
+            background: 'linear-gradient(165deg, #ffffff 0%, #faf9ff 45%, #f5f3ff 100%)',
+            overflow: 'hidden',
+          }}
+        >
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            alignItems={{ sm: 'flex-start' }}
+            justifyContent="space-between"
+            spacing={2}
+            sx={{ px: { xs: 2, sm: 2.75 }, py: { xs: 2, sm: 2.25 } }}
+          >
+            <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ flex: 1, minWidth: 0 }}>
+              <Avatar
+                sx={{
+                  width: 58,
+                  height: 58,
+                  bgcolor: 'rgba(124, 58, 237, 0.14)',
+                  color: '#6d28d9',
+                  flexShrink: 0,
+                  borderRadius: '16px',
+                }}
+              >
+                <Illustration sx={{ fontSize: 30 }} />
+              </Avatar>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: { xs: '1.05rem', sm: '1.2rem' },
+                    color: '#1e1b4b',
+                    letterSpacing: '-0.03em',
+                    lineHeight: 1.25,
+                  }}
+                >
+                  No team members yet
+                </Typography>
+                <Typography
+                  sx={{
+                    mt: 1,
+                    fontSize: '0.92rem',
+                    color: '#64748b',
+                    fontWeight: 500,
+                    lineHeight: 1.55,
+                    maxWidth: 520,
+                  }}
+                >
+                  Add your first employee to assign roles, track tasks, and manage who can access TrackDesk.
+                </Typography>
+              </Box>
+            </Stack>
+            <ButtonBase
+              onClick={onAddEmployee}
+              focusRipple
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 1,
+                alignSelf: { xs: 'flex-start', sm: 'center' },
+                py: 0.65,
+                px: 0.85,
+                borderRadius: '10px',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                fontFamily: 'inherit',
+                color: '#4338ca',
+                textTransform: 'none',
+                flexShrink: 0,
+                '&:hover': {
+                  color: '#7c3aed',
+                  bgcolor: 'rgba(124, 58, 237, 0.08)',
+                },
+              }}
+            >
+              <AddIcon sx={{ fontSize: 20, opacity: 0.92 }} />
+              Add your first employee
+            </ButtonBase>
+          </Stack>
+        </Box>
+      </TableCell>
+    </TableRow>
+  )
+}
 
 function EmployeesPage({ employees, tasks = [], setEmployees, setNotice }) {
   const navigate = useNavigate()
@@ -422,13 +520,7 @@ function EmployeesPage({ employees, tasks = [], setEmployees, setNotice }) {
                   </TableRow>
                 )
               })}
-              {employees.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} sx={{ py: 6, textAlign: 'center' }}>
-                    <Typography sx={{ color: '#94a3b8', fontWeight: 600 }}>No employees found.</Typography>
-                  </TableCell>
-                </TableRow>
-              )}
+              {employees.length === 0 ? <TeamTableEmptyState onAddEmployee={handleOpenAdd} /> : null}
             </TableBody>
           </Table>
         </Box>

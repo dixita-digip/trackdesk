@@ -6,7 +6,6 @@ import {
   CardContent,
   Checkbox,
   Chip,
-  CircularProgress,
   Stack,
   Table,
   TableBody,
@@ -21,6 +20,7 @@ import DoneAllOutlinedIcon from '@mui/icons-material/DoneAllOutlined'
 import MarkEmailReadOutlinedIcon from '@mui/icons-material/MarkEmailReadOutlined'
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import { NotificationsListSkeleton } from './pageSkeletons.jsx'
 
 function timeAgoLabel(isoString) {
   const ts = new Date(isoString).getTime()
@@ -180,9 +180,7 @@ export default function NotificationsPage({
       </Card>
 
       {loading && notifications.length === 0 ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress sx={{ color: '#7c3aed' }} />
-        </Box>
+        <NotificationsListSkeleton />
       ) : notifications.length === 0 ? (
         <Card sx={{ borderRadius: '14px', border: '1px dashed rgba(124,58,237,0.25)', bgcolor: 'rgba(124,58,237,0.02)', boxShadow: 'none' }}>
           <CardContent sx={{ py: 5, textAlign: 'center' }}>

@@ -78,6 +78,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 import StopRoundedIcon from '@mui/icons-material/StopRounded'
 import { createTask, deleteTask, getProjects, getTasks, startTrackerTimer, stopTrackerTimer, updateTask } from './services/api'
+import { TasksBoardSkeleton } from './pageSkeletons.jsx'
 
 /**
  * TrackDesk Kanban — light board (white / soft lavender), dark text; accent #7c4dff
@@ -1260,6 +1261,9 @@ export default function TasksPage({
         bgcolor: BG_CHROME,
       }}
     >
+      {loadingProjects ? (
+        <TasksBoardSkeleton />
+      ) : (
       <Box
         sx={{
           flex: 1,
@@ -1468,6 +1472,7 @@ export default function TasksPage({
           </DndContext>
         </Box>
       </Box>
+      )}
 
       <Menu
         anchorEl={menuAnchor}

@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Box,
-  Button,
   ButtonBase,
   Card,
   Chip,
   CircularProgress,
+  Pagination,
+  Skeleton,
   Stack,
   Tab,
   Table,
@@ -23,8 +24,11 @@ import AlternateEmailOutlinedIcon from '@mui/icons-material/AlternateEmailOutlin
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined'
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined'
-import { getProjects, getTimesheetReport } from './services/api'
+import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
+import { getProjects, getTimesheetReport, getEmployeeScreenCaptures } from './services/api'
 import { canManageEmployees } from './authRoles.js'
+import { DataTableSkeleton, EmployeeDetailFiveColTableSkeleton, EmployeeDetailTimesheetToolbarSkeleton } from './pageSkeletons.jsx'
 
 const TEAM_ROW_AVATAR_COLORS = [
   '#f59e0b',
@@ -57,6 +61,17 @@ function formatSecondsToHhMm(totalSeconds) {
   const hours = Math.floor(minutesTotal / 60)
   const minutes = minutesTotal % 60
   return `${hours}h ${minutes}min`
+}
+
+function formatCaptureWhen(iso) {
+  if (!iso) return '—'
+  try {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return '—'
+    return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
+  } catch {
+    return '—'
+  }
 }
 
 function isTaskCompletedStatus(status) {
@@ -110,7 +125,184 @@ const TAB_SX = {
   },
 }
 
-export default function EmployeeDetailPage({ employees = [], tasks = [], setNotice, userRole, viewerName, onBack }) {
+/** Desktop captures: items per page (responsive row grid). */
+const CAPTURES_PER_PAGE = 6
+
+const CAPTURE_GRID_SX = {
+  display: 'grid',
+  gap: 1.5,
+  gridTemplateColumns: {
+    xs: '1fr',
+    sm: 'repeat(2, 1fr)',
+    md: 'repeat(3, 1fr)',
+  },
+}
+
+/** Matches loaded capture cards: image region + caption band. */
+const CAPTURE_CARD_OUTER_SX = {
+  borderRadius: '12px',
+  overflow: 'hidden',
+  bgcolor: '#f8fafc',
+  border: '1px solid rgba(124,58,237,0.08)',
+  display: 'flex',
+  flexDirection: 'column',
+}
+
+const CAPTURE_IMAGE_AREA_SX = {
+  width: '100%',
+  aspectRatio: '16/10',
+  minHeight: { xs: 184, sm: 208, md: 228 },
+  flexShrink: 0,
+  display: 'block',
+  bgcolor: '#e2e8f0',
+}
+
+const CAPTURE_CARD_FOOTER_SX = {
+  p: 1.15,
+  pt: 1,
+  flexShrink: 0,
+  minHeight: 52,
+}
+
+const CAPTURES_PAGINATION_FOOTER_SX = {
+  py: 2,
+  px: 2,
+  borderTop: '1px solid rgba(0,0,0,0.06)',
+  bgcolor: 'rgba(248, 250, 252, 0.75)',
+}
+
+const CAPTURES_PAGINATION_SX = {
+  '& .MuiPaginationItem-root': { fontWeight: 700 },
+  '& .MuiPaginationItem-root.Mui-selected': {
+    bgcolor: 'rgba(124, 58, 237, 0.14) !important',
+    color: '#5b21b6',
+  },
+}
+
+/** Full-width state view — matches employee profile shell instead of a small floating card. */
+function EmployeeDetailUnavailable({
+  title,
+  description,
+  onBack,
+  svgIcon = LockOutlinedIcon,
+  variant = 'default',
+}) {
+  const Illustration = svgIcon
+  const isAccess = variant === 'access'
+  const avatarBg = isAccess ? 'rgba(245, 158, 11, 0.18)' : 'rgba(124, 58, 237, 0.14)'
+  const avatarColor = isAccess ? '#b45309' : '#6d28d9'
+  const cardBorder = isAccess ? '1px solid rgba(245, 158, 11, 0.28)' : '1px solid rgba(124, 58, 237, 0.1)'
+  const cardBg = isAccess
+    ? 'linear-gradient(165deg, #ffffff 0%, #fffbeb 42%, #fef3c7 100%)'
+    : 'linear-gradient(165deg, #ffffff 0%, #faf9ff 45%, #f5f3ff 100%)'
+
+  return (
+    <Box sx={{ width: '100%', maxWidth: 1100, mx: 'auto' }}>
+      <Card
+        sx={{
+          borderRadius: '18px',
+          overflow: 'hidden',
+          border: cardBorder,
+          boxShadow: '0 4px 24px rgba(30, 27, 75, 0.06), 0 0 0 1px rgba(255,255,255,0.8) inset',
+          background: cardBg,
+        }}
+      >
+        <Box sx={{ px: { xs: 2, sm: 2.75 }, pt: 2, pb: 2.5 }}>
+          <Stack direction="row" spacing={2} alignItems="flex-start">
+            <Avatar
+              sx={{
+                width: 58,
+                height: 58,
+                bgcolor: avatarBg,
+                color: avatarColor,
+                flexShrink: 0,
+                borderRadius: '16px',
+              }}
+            >
+              <Illustration sx={{ fontSize: 30 }} />
+            </Avatar>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Stack
+                direction="row"
+                alignItems="flex-start"
+                justifyContent="space-between"
+                gap={1.5}
+                flexWrap="wrap"
+                sx={{ columnGap: 2, rowGap: 1 }}
+              >
+                <Typography
+                  component="h1"
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: { xs: '1.2rem', sm: '1.38rem' },
+                    color: '#1e1b4b',
+                    letterSpacing: '-0.03em',
+                    lineHeight: 1.25,
+                    flex: '1 1 auto',
+                    minWidth: 'min(100%, 12rem)',
+                  }}
+                >
+                  {title}
+                </Typography>
+                <ButtonBase
+                  onClick={onBack}
+                  focusRipple
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    py: 0.65,
+                    px: 0.85,
+                    borderRadius: '10px',
+                    fontWeight: 800,
+                    fontSize: '0.88rem',
+                    fontFamily: 'inherit',
+                    color: isAccess ? '#b45309' : '#4338ca',
+                    textTransform: 'none',
+                    transition: 'color 0.15s, background-color 0.15s',
+                    flexShrink: 0,
+                    ml: 'auto',
+                    '&:hover': {
+                      color: isAccess ? '#92400e' : '#7c3aed',
+                      bgcolor: isAccess ? 'rgba(245, 158, 11, 0.1)' : 'rgba(124, 58, 237, 0.08)',
+                    },
+                  }}
+                >
+                  <ArrowBackIcon sx={{ fontSize: 20, opacity: 0.92 }} />
+                  Back to team
+                </ButtonBase>
+              </Stack>
+              {description ? (
+                <Typography
+                  sx={{
+                    mt: 1.25,
+                    fontSize: '0.92rem',
+                    color: '#64748b',
+                    fontWeight: 500,
+                    lineHeight: 1.55,
+                    maxWidth: '44rem',
+                  }}
+                >
+                  {description}
+                </Typography>
+              ) : null}
+            </Box>
+          </Stack>
+        </Box>
+      </Card>
+    </Box>
+  )
+}
+
+export default function EmployeeDetailPage({
+  employees = [],
+  employeesFetchSettled = true,
+  tasks = [],
+  setNotice,
+  userRole,
+  viewerName,
+  onBack,
+}) {
   const navigate = useNavigate()
   const { employeeId } = useParams()
   const id = Number(employeeId)
@@ -121,6 +313,12 @@ export default function EmployeeDetailPage({ employees = [], tasks = [], setNoti
   const [timesheetRows, setTimesheetRows] = useState([])
   const [timesheetTotal, setTimesheetTotal] = useState(0)
   const [timesheetLoading, setTimesheetLoading] = useState(false)
+  const [screenCaptures, setScreenCaptures] = useState([])
+  const [screenCapturesTotal, setScreenCapturesTotal] = useState(0)
+  const [screenCapturesLoading, setScreenCapturesLoading] = useState(false)
+  const [capturesPage, setCapturesPage] = useState(1)
+  const screenCapturesEmployeeRef = useRef(null)
+  const redirectAwayRef = useRef(false)
 
   const employee = useMemo(() => employees.find((e) => e.id === id), [employees, id])
   const empIdx = useMemo(() => employees.findIndex((e) => e.id === id), [employees, id])
@@ -146,6 +344,33 @@ export default function EmployeeDetailPage({ employees = [], tasks = [], setNoti
     if (!employee) return []
     return projects.filter((p) => projectForEmployee(p, employee.name))
   }, [projects, employee])
+
+  useEffect(() => {
+    redirectAwayRef.current = false
+  }, [employeeId])
+
+  useEffect(() => {
+    if (redirectAwayRef.current) return
+
+    if (!Number.isFinite(id) || id < 1) {
+      redirectAwayRef.current = true
+      setNotice?.({ type: 'info', message: 'That profile link is not valid.' })
+      onBack?.()
+      return
+    }
+
+    if (!employeesFetchSettled) return
+
+    const found = employees.some((e) => Number(e.id) === id)
+    if (found) return
+
+    redirectAwayRef.current = true
+    setNotice?.({
+      type: 'info',
+      message: 'That team member could not be opened. They may have been removed.',
+    })
+    onBack?.()
+  }, [id, employees, employeesFetchSettled, onBack, setNotice])
 
   useEffect(() => {
     let mounted = true
@@ -185,6 +410,47 @@ export default function EmployeeDetailPage({ employees = [], tasks = [], setNoti
     loadTimesheet()
   }, [tab, employee?.id, loadTimesheet])
 
+  const loadScreenCaptures = useCallback(
+    async (pageNum) => {
+      if (!employee?.id) return
+      const p = Math.max(1, Number(pageNum) || 1)
+      setScreenCapturesLoading(true)
+      try {
+        const data = await getEmployeeScreenCaptures(employee.id, { page: p, pageSize: CAPTURES_PER_PAGE })
+        setScreenCaptures(Array.isArray(data?.items) ? data.items : [])
+        setScreenCapturesTotal(Number(data?.total) || 0)
+      } catch (err) {
+        const message = err?.response?.data?.message || err?.message || 'Failed to load screen captures'
+        setNotice?.({ type: 'error', message })
+        setScreenCaptures([])
+        setScreenCapturesTotal(0)
+      } finally {
+        setScreenCapturesLoading(false)
+      }
+    },
+    [employee?.id, setNotice],
+  )
+
+  const capturesPageCount = useMemo(
+    () => Math.max(1, Math.ceil(screenCapturesTotal / CAPTURES_PER_PAGE)),
+    [screenCapturesTotal],
+  )
+
+  useEffect(() => {
+    if (tab !== 4 || !employee?.id) return
+    if (screenCapturesEmployeeRef.current !== employee.id) {
+      screenCapturesEmployeeRef.current = employee.id
+      setCapturesPage(1)
+      void loadScreenCaptures(1)
+      return
+    }
+    void loadScreenCaptures(capturesPage)
+  }, [tab, employee?.id, capturesPage, loadScreenCaptures])
+
+  useEffect(() => {
+    if (capturesPage > capturesPageCount) setCapturesPage(capturesPageCount)
+  }, [capturesPage, capturesPageCount])
+
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [employeeId])
@@ -194,43 +460,32 @@ export default function EmployeeDetailPage({ employees = [], tasks = [], setNoti
     else navigate(-1)
   }
 
-  if (!Number.isFinite(id) || id < 1) {
-    return (
-      <Box sx={{ maxWidth: 560, mx: 'auto', py: 4 }}>
-        <Card sx={{ p: 3, borderRadius: '16px', border: '1px solid rgba(124,58,237,0.12)' }}>
-          <Typography fontWeight={800} color="#1e1b4b" sx={{ mb: 1 }}>Invalid link</Typography>
-          <Button startIcon={<ArrowBackIcon />} onClick={handleBack} sx={{ fontWeight: 700, textTransform: 'none' }}>
-            Back to team
-          </Button>
-        </Card>
-      </Box>
-    )
+  const invalidId = !Number.isFinite(id) || id < 1
+
+  if (invalidId) {
+    return null
   }
 
   if (!employee) {
-    return (
-      <Box sx={{ maxWidth: 560, mx: 'auto', py: 4 }}>
-        <Card sx={{ p: 3, borderRadius: '16px', border: '1px solid rgba(124,58,237,0.12)' }}>
-          <Typography fontWeight={800} color="#1e1b4b" sx={{ mb: 1 }}>Employee not found</Typography>
-          <Button startIcon={<ArrowBackIcon />} onClick={handleBack} sx={{ fontWeight: 700, textTransform: 'none' }}>
-            Back to team
-          </Button>
-        </Card>
-      </Box>
-    )
+    if (!employeesFetchSettled) {
+      return (
+        <Box sx={{ width: '100%', maxWidth: 1100, mx: 'auto', py: 8, display: 'flex', justifyContent: 'center' }}>
+          <CircularProgress sx={{ color: '#7c3aed' }} />
+        </Box>
+      )
+    }
+    return null
   }
 
   if (!canView) {
     return (
-      <Box sx={{ maxWidth: 560, mx: 'auto', py: 4 }}>
-        <Card sx={{ p: 3, borderRadius: '16px', border: '1px solid rgba(245,158,11,0.35)' }}>
-          <Typography fontWeight={800} color="#1e1b4b" sx={{ mb: 1 }}>Access restricted</Typography>
-          <Typography sx={{ color: '#64748b', fontSize: '0.88rem', mb: 2 }}>You can only open your own profile from here.</Typography>
-          <Button startIcon={<ArrowBackIcon />} onClick={handleBack} sx={{ fontWeight: 700, textTransform: 'none' }}>
-            Back
-          </Button>
-        </Card>
-      </Box>
+      <EmployeeDetailUnavailable
+        title="Access restricted"
+        description="You can only open your own profile here. Ask an admin if you need to view someone else’s details."
+        onBack={handleBack}
+        svgIcon={LockOutlinedIcon}
+        variant="access"
+      />
     )
   }
 
@@ -408,6 +663,7 @@ export default function EmployeeDetailPage({ employees = [], tasks = [], setNoti
             <Tab disableRipple label="Assigned projects" />
             <Tab disableRipple label="Logged hours" />
             <Tab disableRipple label="Tasks" />
+            <Tab disableRipple label="Desktop captures" />
           </Tabs>
         </Box>
       </Card>
@@ -417,7 +673,9 @@ export default function EmployeeDetailPage({ employees = [], tasks = [], setNoti
       {tab === 1 && (
         <Card sx={{ borderRadius: '16px', border: '1px solid rgba(124,58,237,0.1)', overflow: 'hidden', boxShadow: '0 2px 12px rgba(30,27,75,0.04)' }}>
           {projectsLoading ? (
-            <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}><CircularProgress size={32} sx={{ color: '#7c3aed' }} /></Box>
+            <Box sx={{ overflowX: 'auto' }}>
+              <EmployeeDetailFiveColTableSkeleton />
+            </Box>
           ) : assignedProjects.length === 0 ? (
             <Box sx={{ py: 5, px: 3, textAlign: 'center' }}>
               <FolderOpenOutlinedIcon sx={{ fontSize: 40, color: '#cbd5e1', mb: 1 }} />
@@ -468,7 +726,12 @@ export default function EmployeeDetailPage({ employees = [], tasks = [], setNoti
             />
           </Box>
           {timesheetLoading ? (
-            <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}><CircularProgress size={32} sx={{ color: '#7c3aed' }} /></Box>
+            <>
+              <EmployeeDetailTimesheetToolbarSkeleton />
+              <Box sx={{ overflowX: 'auto' }}>
+                <DataTableSkeleton columns={5} rows={6} />
+              </Box>
+            </>
           ) : timesheetRows.length === 0 ? (
             <Box sx={{ py: 5, px: 3, textAlign: 'center' }}>
               <Typography sx={{ color: '#64748b', fontWeight: 700 }}>No logged hours found for this employee.</Typography>
@@ -533,6 +796,113 @@ export default function EmployeeDetailPage({ employees = [], tasks = [], setNoti
                 ))}
               </TableBody>
             </Table>
+          )}
+        </Card>
+      )}
+
+      {tab === 4 && (
+        <Card sx={{ borderRadius: '16px', border: '1px solid rgba(124,58,237,0.1)', overflow: 'hidden', boxShadow: '0 2px 12px rgba(30,27,75,0.04)' }}>
+          <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }} style={{alignItems: 'center'}}>
+              <PhotoLibraryOutlinedIcon sx={{ color: '#7c3aed' }} />
+              <Typography sx={{ fontWeight: 800, color: '#1e1b4b', fontSize: '1rem' }}>Desktop screen captures</Typography>
+            </Stack>
+          </Box>
+          {screenCapturesLoading ? (
+            <>
+              <Box sx={{ p: 2 }}>
+                <Box sx={CAPTURE_GRID_SX}>
+                  {Array.from({ length: CAPTURES_PER_PAGE }, (_, i) => (
+                    <Box key={`capture-skeleton-${i}`} sx={CAPTURE_CARD_OUTER_SX}>
+                      <Skeleton
+                        variant="rectangular"
+                        animation="wave"
+                        sx={{
+                          ...CAPTURE_IMAGE_AREA_SX,
+                          bgcolor: '#e8ecf4',
+                        }}
+                      />
+                      <Box sx={CAPTURE_CARD_FOOTER_SX}>
+                        <Skeleton variant="rectangular" animation="wave" height={38} sx={{ borderRadius: '8px', bgcolor: 'rgba(148,163,184,0.22)' }} />
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+              <Stack alignItems="center" sx={CAPTURES_PAGINATION_FOOTER_SX}>
+                <Box sx={{ pointerEvents: 'none', opacity: 0.72 }}>
+                  <Pagination
+                    count={1}
+                    page={1}
+                    onChange={() => {}}
+                    color="primary"
+                    shape="rounded"
+                    size="small"
+                    siblingCount={0}
+                    boundaryCount={1}
+                    sx={CAPTURES_PAGINATION_SX}
+                  />
+                </Box>
+                <Typography variant="caption" sx={{ mt: 1.25, color: '#64748b', fontWeight: 600 }}>
+                  Loading captures…
+                </Typography>
+              </Stack>
+            </>
+          ) : screenCaptures.length === 0 ? (
+            <Box sx={{ py: 5, px: 3, textAlign: 'center' }}>
+              <PhotoLibraryOutlinedIcon sx={{ fontSize: 40, color: '#cbd5e1', mb: 1 }} />
+              <Typography sx={{ color: '#64748b', fontWeight: 700 }}>No captures yet.</Typography>
+              <Typography sx={{ color: '#94a3b8', fontSize: '0.8rem', mt: 0.5 }}>
+                The employee must be logged into the desktop tracker with the same API URL as this site so uploads can reach the server.
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              <Box sx={{ p: 2 }}>
+                <Box sx={CAPTURE_GRID_SX}>
+                  {screenCaptures.map((item) => (
+                    <Box key={item.id} sx={CAPTURE_CARD_OUTER_SX}>
+                      <Box
+                        component="img"
+                        src={item.imageUrl || item.dataUrl}
+                        alt={`Display ${Number(item.displayIndex ?? 0) + 1} at ${formatCaptureWhen(item.capturedAt)}`}
+                        loading="lazy"
+                        sx={{
+                          ...CAPTURE_IMAGE_AREA_SX,
+                          objectFit: 'cover',
+                        }}
+                      />
+                      <Box sx={CAPTURE_CARD_FOOTER_SX}>
+                        <Typography sx={{ fontWeight: 800, fontSize: '0.8rem', color: '#1e1b4b', letterSpacing: '-0.01em' }}>
+                          Display {Number(item.displayIndex ?? 0) + 1}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, mt: 0.25 }}>
+                          {formatCaptureWhen(item.capturedAt)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+              {screenCapturesTotal > 0 && (
+                <Stack alignItems="center" sx={CAPTURES_PAGINATION_FOOTER_SX}>
+                  <Pagination
+                    count={capturesPageCount}
+                    page={capturesPage}
+                    onChange={(_, p) => setCapturesPage(p)}
+                    color="primary"
+                    shape="rounded"
+                    size="small"
+                    siblingCount={1}
+                    boundaryCount={1}
+                    sx={CAPTURES_PAGINATION_SX}
+                  />
+                  <Typography variant="caption" sx={{ mt: 1.25, color: '#64748b', fontWeight: 600 }}>
+                    {screenCapturesTotal} capture{screenCapturesTotal !== 1 ? 's' : ''} · page {capturesPage} of {capturesPageCount}
+                  </Typography>
+                </Stack>
+              )}
+            </>
           )}
         </Card>
       )}

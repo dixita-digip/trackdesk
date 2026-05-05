@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -37,6 +36,7 @@ import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 
 import { createProject, deleteProject, getProjects, updateProject } from './services/api'
+import { DataTableSkeleton } from './pageSkeletons.jsx'
 
 function emptyForm() {
   return {
@@ -333,8 +333,8 @@ export default function ProjectsPage({
       >
         <CardContent sx={{ p: 0 }}>
           {loading ? (
-            <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}>
-              <CircularProgress />
+            <Box sx={{ overflowX: 'auto' }}>
+              <DataTableSkeleton columns={8} rows={7} />
             </Box>
           ) : (
             <Box sx={{ overflowX: 'auto' }}>

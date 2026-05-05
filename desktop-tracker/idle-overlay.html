@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="color-scheme" content="light" />
+    <!-- default-src alone can block inline <style> in Chromium → Times + default buttons. Use external CSS. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self';" />
+    <title>TrackDesk — Time paused</title>
+    <link rel="stylesheet" href="./idle-overlay.css" />
+  </head>
+  <body>
+    <div class="card">
+      <div class="header drag">
+        <div class="warn-icon-wrap" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+          </svg>
+        </div>
+        <h1 id="idleTitle">Time Tracking Paused</h1>
+      </div>
+      <div class="body-block drag">
+        <p id="idleMessage"></p>
+        <p class="hint">
+          Click Resume Time to continue tracking, or Dismiss to keep the current entry saved.
+        </p>
+      </div>
+      <div class="footer no-drag">
+        <button type="button" class="btn-dismiss" id="dismissBtn">Dismiss</button>
+        <button type="button" class="btn-resume" id="resumeBtn">Resume Time</button>
+      </div>
+    </div>
+    <script src="./idle-overlay.js"></script>
+  </body>
+</html>
