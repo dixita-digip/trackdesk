@@ -487,6 +487,13 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
 }
 
+/** Login link in welcome emails: APP_LOGIN_URL, else FRONTEND_URL, else local dev. Set in API .env. */
+function resolveLoginUrlForEmail() {
+  const raw = String(process.env.APP_LOGIN_URL || process.env.FRONTEND_URL || '').trim()
+  if (!raw) return 'https://trackdesk.vercel.app/'
+  return raw.replace(/\/$/, '')
+}
+
 function resolveSmtpFromAddress() {
   const raw = String(process.env.SMTP_FROM || '').replace(/^\uFEFF/, '').trim()
   const angle = raw.match(/<([^>\s@]+@[^>\s]+)>/)
@@ -508,7 +515,7 @@ async function sendEmployeeWelcomeEmail({ toEmail, fullName, role, tempPassword 
         'Set SMTP_FROM in .env to a verified sender address (e.g. no-reply@yourdomain.com). With SendGrid, SMTP_USER must stay "apikey" and cannot be used as the From header.',
     }
   }
-  const loginUrl = process.env.APP_LOGIN_URL || 'http://localhost:5173'
+  const loginUrl = resolveLoginUrlForEmail()
   const fromName = String(process.env.SMTP_FROM_NAME || 'TrackDesk').trim() || 'TrackDesk'
   const fromHeader = `"${fromName.replace(/"/g, '\\"')}" <${from}>`
   const supportEmail = String(process.env.SMTP_REPLY_TO || from).trim()
@@ -539,6 +546,7 @@ async function sendEmployeeWelcomeEmail({ toEmail, fullName, role, tempPassword 
           <tr><td style="padding:6px 10px 6px 0;font-weight:700">Role</td><td style="padding:6px 0">${escapeHtml(role)}</td></tr>
           <tr><td style="padding:6px 10px 6px 0;font-weight:700">Username</td><td style="padding:6px 0">${escapeHtml(toEmail)}</td></tr>
           <tr><td style="padding:6px 10px 6px 0;font-weight:700">Temporary password</td><td style="padding:6px 0"><code style="background:#f8fafc;border:1px solid #e2e8f0;padding:2px 6px;border-radius:6px">${escapeHtml(tempPassword)}</code></td></tr>
+          <tr><td style="padding:6px 10px 6px 0;font-weight:700;vertical-align:top">Login URL</td><td style="padding:6px 0"><a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a></td></tr>
         </table>
         <p><a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:700">Open TrackDesk</a></p>
         <p>Please sign in and change your password.</p>

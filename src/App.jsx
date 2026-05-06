@@ -1469,7 +1469,7 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
                 { icon: <AssignmentIcon sx={{ fontSize: 20 }} />, title: 'Task Tracking', desc: 'Monitor tasks with priorities & due dates' },
                 { icon: <BarChartIcon sx={{ fontSize: 20 }} />, title: 'Analytics & Reports', desc: 'Generate insights and progress reports' },
               ].map((f) => (
-                <Stack key={f.title} direction="row" spacing={2} alignItems="center">
+                <Stack key={f.title} direction="row" spacing={2} alignItems="center" style={{alignItems:"center"}}>
                   <Box
                     sx={{
                       p: 1.2,
@@ -1565,16 +1565,7 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
                 ),
               }}
               fullWidth
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px',
-                  transition: 'all 0.2s',
-                  '&:hover fieldset': { borderColor: '#a78bfa' },
-                  '&.Mui-focused fieldset': { borderColor: '#7c3aed', borderWidth: '2px' },
-                  '&.Mui-focused': { boxShadow: '0 0 0 4px rgba(124,58,237,0.1)' },
-                },
-                '& label.Mui-focused': { color: '#7c3aed' },
-              }}
+              style={{padding:"0px !important"}}
             />
 
             <TextField
@@ -1600,16 +1591,6 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
                 ),
               }}
               fullWidth
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px',
-                  transition: 'all 0.2s',
-                  '&:hover fieldset': { borderColor: '#a78bfa' },
-                  '&.Mui-focused fieldset': { borderColor: '#7c3aed', borderWidth: '2px' },
-                  '&.Mui-focused': { boxShadow: '0 0 0 4px rgba(124,58,237,0.1)' },
-                },
-                '& label.Mui-focused': { color: '#7c3aed' },
-              }}
             />
 
             <Stack direction="row" alignItems="center">
@@ -1844,10 +1825,12 @@ function SectionHeader({ label, action }) {
   )
 }
 
-/* ────────────────────────────────────────────────
-   Main App
-──────────────────────────────────────────────── */
 function App() {
+  const [loginForm, setLoginForm] = useState({
+    email: '',
+    password: '',
+    keepSignedIn: true,
+  })
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const navigate = useNavigate()
@@ -1883,17 +1866,12 @@ function App() {
         keepSignedIn: p.keepSignedIn !== false,
         role,
         displayName: p.displayName || (role === 'Employee' ? 'Team member' : 'System Admin'),
-        email: p.email || 'admin@system.local',
+        email: p.email || '',
         userId: p.userId ?? null,
         passwordResetRequired: Boolean(p.passwordResetRequired),
         token: String(p.token || ''),
       }
     } catch { return { signedIn: false, keepSignedIn: true } }
-  })
-  const [loginForm, setLoginForm] = useState({
-    email: 'admin@system.local',
-    password: 'admin123',
-    keepSignedIn: true,
   })
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)

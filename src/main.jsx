@@ -111,7 +111,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': { borderRadius: 10 },
-          '& .MuiOutlinedInput-input': { padding: '10px', fontSize: '0.8125rem' },
+          '& .MuiOutlinedInput-input': { padding: '15px', fontSize: '0.8125rem' },
           '&.project-description-textarea textarea': { padding: '0px' },
 
         },
