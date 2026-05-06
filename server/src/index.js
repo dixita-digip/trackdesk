@@ -444,8 +444,15 @@ function createPasswordHash(password, salt = crypto.randomBytes(16).toString('he
 
 function verifyPassword(password, salt, hash) {
   if (!password || !salt || !hash) return false
-  const derived = crypto.pbkdf2Sync(String(password), String(salt), 100000, 64, 'sha512').toString('hex')
-  return crypto.timingSafeEqual(Buffer.from(derived, 'hex'), Buffer.from(String(hash), 'hex'))
+  try {
+    const derived = crypto.pbkdf2Sync(String(password), String(salt), 100000, 64, 'sha512').toString('hex')
+    const a = Buffer.from(derived, 'hex')
+    const b = Buffer.from(String(hash), 'hex')
+    if (a.length !== b.length) return false
+    return crypto.timingSafeEqual(a, b)
+  } catch {
+    return false
+  }
 }
 
 function generateTemporaryPassword() {
@@ -618,21 +625,44 @@ app.post('/api/auth/login', (req, res) => {
   if (!email || !password) return res.status(400).json({ message: 'email and password are required' })
 
   if (email === String(DEFAULT_ADMIN_EMAIL).trim().toLowerCase()) {
-    if (password !== adminPassword) return res.status(401).json({ message: 'Invalid credentials' })
-    const token = createAuthToken({
-      sub: 'admin',
-      email: DEFAULT_ADMIN_EMAIL,
-      role: 'Admin',
-      displayName: DEFAULT_ADMIN_NAME,
-    })
-    return res.json({
-      token,
-      role: 'Admin',
-      displayName: DEFAULT_ADMIN_NAME,
-      email: DEFAULT_ADMIN_EMAIL,
-      userId: 'admin',
-      passwordResetRequired: false,
-    })
+    if (password === adminPassword) {
+      const token = createAuthToken({
+        sub: 'admin',
+        email: DEFAULT_ADMIN_EMAIL,
+        role: 'Admin',
+        displayName: DEFAULT_ADMIN_NAME,
+      })
+      return res.json({
+        token,
+        role: 'Admin',
+        displayName: DEFAULT_ADMIN_NAME,
+        email: DEFAULT_ADMIN_EMAIL,
+        userId: 'admin',
+        passwordResetRequired: false,
+      })
+    }
+    const adminEmailEmployee = employees.find((e) => String(e.email || '').trim().toLowerCase() === email)
+    if (
+      adminEmailEmployee &&
+      adminEmailEmployee.active !== false &&
+      verifyPassword(password, adminEmailEmployee.passwordSalt, adminEmailEmployee.passwordHash)
+    ) {
+      const token = createAuthToken({
+        sub: String(adminEmailEmployee.id),
+        email: adminEmailEmployee.email,
+        role: adminEmailEmployee.role || 'Employee',
+        displayName: adminEmailEmployee.name,
+      })
+      return res.json({
+        token,
+        role: adminEmailEmployee.role || 'Employee',
+        displayName: adminEmailEmployee.name,
+        email: adminEmailEmployee.email,
+        userId: adminEmailEmployee.id,
+        passwordResetRequired: Boolean(adminEmailEmployee.passwordResetRequired),
+      })
+    }
+    return res.status(401).json({ message: 'Invalid credentials' })
   }
 
   const employee = employees.find((e) => String(e.email || '').trim().toLowerCase() === email)
@@ -1303,6 +1333,12 @@ app.post('/api/employees', async (req, res) => {
   const normalizedEmail = String(email || '').trim().toLowerCase()
   if (!normalizedEmail) return res.status(400).json({ message: 'email is required' })
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return res.status(400).json({ message: 'valid email is required' })
+  if (normalizedEmail === String(DEFAULT_ADMIN_EMAIL).trim().toLowerCase()) {
+    return res.status(400).json({
+      message:
+        'This email is reserved for the built-in admin account. Use a different address for employees, or sign in as admin with ADMIN_EMAIL / ADMIN_PASSWORD.',
+    })
+  }
   const normalizedRole = ['Admin', 'Manager', 'Employee'].includes(role) ? role : 'Employee'
   if (employees.some((e) => String(e.name || '').trim().toLowerCase() === String(name || '').trim().toLowerCase())) {
     return res.status(400).json({ message: 'employee name must be unique' })
@@ -1373,6 +1409,12 @@ app.patch('/api/employees/:id', async (req, res) => {
     const normalizedEmail = String(email || '').trim().toLowerCase()
     if (!normalizedEmail) return res.status(400).json({ message: 'email is required' })
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return res.status(400).json({ message: 'valid email is required' })
+    if (normalizedEmail === String(DEFAULT_ADMIN_EMAIL).trim().toLowerCase()) {
+      return res.status(400).json({
+        message:
+          'This email is reserved for the built-in admin account. Choose a different employee email.',
+      })
+    }
     const duplicateEmail = employees.some(
       (e) => e.id !== id && String(e.email || '').trim().toLowerCase() === normalizedEmail,
     )
