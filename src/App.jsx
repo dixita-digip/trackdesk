@@ -73,9 +73,7 @@ import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import {
-  API_BASE_URL,
   clearAuthToken,
-  createTrackerDownloadToken,
   deleteNotifications,
   getEmployees,
   getNotifications,
@@ -104,6 +102,11 @@ import EmployeeDetailPage from './EmployeeDetailPage.jsx'
 import { DashboardPageSkeleton, EmployeesModuleSkeleton } from './pageSkeletons.jsx'
 import { notify } from './notify.js'
 
+const TRACKER_DOWNLOAD_URL = 'https://github.com/dixita-digip/trackdesk/releases/download/tracker-v1.0.0/tracker-setup.exe'
+// Optional but recommended: fill with the exact SHA-256 hash of the installer you uploaded.
+// If left empty, the UI will hide the hash section.
+const TRACKER_INSTALLER_SHA256 = '47130F3F643F36FEA3E429F2B5F412F912D7DA4D9C95F7DA0B1B2EA16F8B9366'
+
 function HelpSupportPage({ setNotice, onDownloadTracker }) {
   const whyItems = [
     'Automatic work-hour capture helps avoid manual timesheet mistakes.',
@@ -114,13 +117,13 @@ function HelpSupportPage({ setNotice, onDownloadTracker }) {
 
   const startItems = [
     'Ensure your employee account is active and you can log in to the web app.',
-    'Download and install the Tracker app from the profile dropdown.',
+    'Download and install the Tracker app from the profile dropdown (opens GitHub Releases).',
     'Allow required permissions on your operating system when prompted.',
     'Keep internet enabled periodically so logs can sync to server.',
   ]
 
   const steps = [
-    { title: 'Install', body: 'Open profile menu in the web app and click "Download Tracker App". Run the installer.' },
+    { title: 'Install', body: 'Open profile menu in the web app and click "Download Tracker App" to download the installer from GitHub Releases. Run the installer.' },
     { title: 'Sign In', body: 'Launch Tracker and log in with your employee email and password.' },
     { title: 'Start Tracking', body: 'Click Start Tracking when your work begins. Keep the app running in background.' },
     { title: 'Assign Task Context', body: 'Select project/task when prompted so your tracked time is mapped correctly.' },
@@ -208,6 +211,23 @@ function HelpSupportPage({ setNotice, onDownloadTracker }) {
               >
                 Download Tracker App
               </Button>
+              <Box sx={{ mt: 0.8, maxWidth: 640 }}>
+                <Typography sx={{ color: '#64748b', fontSize: '0.82rem', lineHeight: 1.55 }}>
+                  Windows may show a warning if the installer is not code-signed. If your admin provides a SHA-256 hash, you can verify the downloaded file in PowerShell using{' '}
+                  <Box component="span" sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}>
+                    Get-FileHash .\tracker-setup.exe -Algorithm SHA256
+                  </Box>
+                  .
+                </Typography>
+                {!!TRACKER_INSTALLER_SHA256 && (
+                  <Typography sx={{ mt: 0.35, color: '#475569', fontSize: '0.82rem', lineHeight: 1.55 }}>
+                    SHA-256:{' '}
+                    <Box component="span" sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}>
+                      {TRACKER_INSTALLER_SHA256}
+                    </Box>
+                  </Typography>
+                )}
+              </Box>
               <Button
                 variant="outlined"
                 startIcon={<MailOutlinedIcon style={{fontSize: '1.7 rem'}}/>}
@@ -2172,26 +2192,7 @@ function App() {
 
   async function handleDownloadTracker() {
     try {
-      const token = String(auth?.token || '').trim()
-      if (!token) {
-        setNotice({ type: 'error', message: 'Sign in to download the tracker app.' })
-        return
-      }
-
-      const dlToken = await createTrackerDownloadToken()
-
-      const base = API_BASE_URL.replace(/\/+$/, '')
-      const queryPath = `${base}/tracker/installer?token=${encodeURIComponent(dlToken)}`
-      const installerUrl = /^https?:\/\//i.test(base)
-        ? queryPath
-        : new URL(queryPath, window.location.origin).href
-
-      const iframe = document.createElement('iframe')
-      iframe.style.display = 'none'
-      iframe.setAttribute('aria-hidden', 'true')
-      document.body.appendChild(iframe)
-      iframe.src = installerUrl
-      setTimeout(() => iframe.remove(), 10 * 60 * 1000)
+      window.open(TRACKER_DOWNLOAD_URL, '_blank', 'noopener,noreferrer')
     } catch (error) {
       const message =
         error?.response?.data?.message || error?.message || 'Unable to download tracker app'
