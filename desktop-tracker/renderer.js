@@ -44,6 +44,7 @@ let taskRows = []
 let projectRows = []
 let authUser = null
 let trackerBootstrapComplete = false
+const DEFAULT_API_BASE = 'https://trackdesk-server.vercel.app/api'
 
 function showTrackerLoading() {
   if (trackerLoadingOverlay) trackerLoadingOverlay.classList.remove('hidden')
@@ -164,7 +165,14 @@ function pushSyncCredentials() {
 }
 
 function restoreSettings() {
-  apiBaseInput.value = localStorage.getItem('tracker-api-base') || 'https://trackdesk-server.vercel.app/api'
+  const savedApiBase = String(localStorage.getItem('tracker-api-base') || '').trim().replace(/\/+$/, '')
+  const isLegacyLocalApiBase =
+    !savedApiBase ||
+    /^https?:\/\/localhost(?::\d+)?\/api$/i.test(savedApiBase) ||
+    /^https?:\/\/127\.0\.0\.1(?::\d+)?\/api$/i.test(savedApiBase)
+  const resolvedApiBase = isLegacyLocalApiBase ? DEFAULT_API_BASE : savedApiBase
+  apiBaseInput.value = resolvedApiBase
+  if (isLegacyLocalApiBase) localStorage.setItem('tracker-api-base', resolvedApiBase)
   userIdInput.value = localStorage.getItem('tracker-user-id') || ''
   userNameInput.value = localStorage.getItem('tracker-user-name') || ''
   const savedProject = localStorage.getItem('tracker-project-name') || ''
