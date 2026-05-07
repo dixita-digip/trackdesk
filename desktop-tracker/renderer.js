@@ -146,7 +146,7 @@ function pushSyncCredentials() {
 }
 
 function restoreSettings() {
-  apiBaseInput.value = localStorage.getItem('tracker-api-base') || 'http://localhost:5000/api'
+  apiBaseInput.value = localStorage.getItem('tracker-api-base') || 'https://trackdesk-server.vercel.app/api'
   userIdInput.value = localStorage.getItem('tracker-user-id') || ''
   userNameInput.value = localStorage.getItem('tracker-user-name') || ''
   const savedProject = localStorage.getItem('tracker-project-name') || ''
