@@ -361,6 +361,18 @@ body {
   cursor: not-allowed;
 }
 
+.login-status {
+  margin: 2px 0 1px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(254, 242, 242, 0.95);
+  color: #b91c1c;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
 .selector-row {
   margin: 0 0 10px;
   padding: 10px 10px 12px;

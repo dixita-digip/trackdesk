@@ -19,6 +19,7 @@ const orgTitleEl = document.getElementById('orgTitle')
 const authEmailInput = document.getElementById('authEmail')
 const authPasswordInput = document.getElementById('authPassword')
 const authStateEl = document.getElementById('authState')
+const loginStatusEl = document.getElementById('loginStatus')
 const loginBtn = document.getElementById('loginBtn')
 const openLoginBtn = document.getElementById('openLoginBtn')
 const backToEntranceBtn = document.getElementById('backToEntranceBtn')
@@ -96,11 +97,13 @@ function isEmployeeRole(role) {
 function showEntrance() {
   if (entranceScreen) entranceScreen.classList.remove('hidden')
   if (loginFormScreen) loginFormScreen.classList.add('hidden')
+  setLoginStatus('')
 }
 
 function showLoginForm() {
   if (entranceScreen) entranceScreen.classList.add('hidden')
   if (loginFormScreen) loginFormScreen.classList.remove('hidden')
+  setLoginStatus('')
 }
 
 function formatDuration(totalSeconds) {
@@ -114,6 +117,21 @@ function formatDuration(totalSeconds) {
 function setStatus(message, isError = false) {
   statusEl.textContent = message
   statusEl.style.color = isError ? '#c32f3a' : '#4c5875'
+}
+
+function setLoginStatus(message, isError = false) {
+  if (!loginStatusEl) return
+  const text = String(message || '').trim()
+  if (!text) {
+    loginStatusEl.textContent = ''
+    loginStatusEl.classList.add('hidden')
+    return
+  }
+  loginStatusEl.textContent = text
+  loginStatusEl.classList.remove('hidden')
+  loginStatusEl.style.borderColor = isError ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.35)'
+  loginStatusEl.style.background = isError ? 'rgba(254, 242, 242, 0.95)' : 'rgba(240, 253, 244, 0.95)'
+  loginStatusEl.style.color = isError ? '#b91c1c' : '#166534'
 }
 
 function persistSettings() {
@@ -230,9 +248,11 @@ async function loginTrackerUser() {
   const password = authPasswordInput.value
   if (!email || !password) {
     setStatus('Email and password are required', true)
+    setLoginStatus('Email and password are required', true)
     return
   }
   try {
+    setLoginStatus('')
     const response = await fetch(`${getApiBase()}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -253,8 +273,13 @@ async function loginTrackerUser() {
     await refreshProjects(true)
     void pushSyncCredentials()
     setStatus('Login successful.')
+    setLoginStatus('Login successful.', false)
   } catch (error) {
-    setStatus(error.message || 'Login failed', true)
+    const apiBase = getApiBase()
+    const message = String(error?.message || 'Login failed')
+    const detail = `${message}\nAPI: ${apiBase}\nCheck Settings -> API Base URL and try again.`
+    setStatus(message, true)
+    setLoginStatus(detail, true)
   }
 }
 
@@ -700,6 +725,12 @@ if (authPasswordInput) {
   authPasswordInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') loginTrackerUser()
   })
+}
+if (authEmailInput) {
+  authEmailInput.addEventListener('input', () => setLoginStatus(''))
+}
+if (authPasswordInput) {
+  authPasswordInput.addEventListener('input', () => setLoginStatus(''))
 }
 
 restoreSettings()
