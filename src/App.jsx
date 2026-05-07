@@ -211,23 +211,7 @@ function HelpSupportPage({ setNotice, onDownloadTracker }) {
               >
                 Download Tracker App
               </Button>
-              <Box sx={{ mt: 0.8, maxWidth: 640 }}>
-                <Typography sx={{ color: '#64748b', fontSize: '0.82rem', lineHeight: 1.55 }}>
-                  Windows may show a warning if the installer is not code-signed. If your admin provides a SHA-256 hash, you can verify the downloaded file in PowerShell using{' '}
-                  <Box component="span" sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}>
-                    Get-FileHash .\tracker-setup.exe -Algorithm SHA256
-                  </Box>
-                  .
-                </Typography>
-                {!!TRACKER_INSTALLER_SHA256 && (
-                  <Typography sx={{ mt: 0.35, color: '#475569', fontSize: '0.82rem', lineHeight: 1.55 }}>
-                    SHA-256:{' '}
-                    <Box component="span" sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}>
-                      {TRACKER_INSTALLER_SHA256}
-                    </Box>
-                  </Typography>
-                )}
-              </Box>
+              
               <Button
                 variant="outlined"
                 startIcon={<MailOutlinedIcon style={{fontSize: '1.7 rem'}}/>}
