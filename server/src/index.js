@@ -569,12 +569,64 @@ async function sendEmployeeWelcomeEmail({ toEmail, fullName, role, tempPassword 
   return { sent: true, message: `Welcome email sent to ${toEmail}` }
 }
 
+async function sendPasswordResetEmail({ toEmail, fullName, resetToken }) {
+  const transport = getMailTransport()
+  if (!transport) return { sent: false, message: 'SMTP is not configured on server.' }
+  const from = resolveSmtpFromAddress()
+  if (!from) {
+    return {
+      sent: false,
+      message:
+        'Set SMTP_FROM in .env to a verified sender address (e.g. no-reply@yourdomain.com). With SendGrid, SMTP_USER must stay "apikey" and cannot be used as the From header.',
+    }
+  }
+  const loginBase = resolveLoginUrlForEmail()
+  const resetUrl = `${loginBase}/reset-password?token=${encodeURIComponent(resetToken)}`
+  const fromName = String(process.env.SMTP_FROM_NAME || 'TrackDesk').trim() || 'TrackDesk'
+  const fromHeader = `"${fromName.replace(/"/g, '\\"')}" <${from}>`
+  const supportEmail = String(process.env.SMTP_REPLY_TO || from).trim()
+  const safeName = fullName || toEmail
+
+  const info = await transport.sendMail({
+    from: fromHeader,
+    replyTo: supportEmail,
+    to: toEmail,
+    subject: 'Reset your TrackDesk password',
+    text: [
+      `Hi ${safeName},`,
+      '',
+      'We received a request to reset your TrackDesk password.',
+      '',
+      `Reset link (expires in ${PASSWORD_RESET_TOKEN_EXPIRES_IN}):`,
+      resetUrl,
+      '',
+      'If you did not request this, you can ignore this email.',
+    ].join('\n'),
+    html: `
+      <div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;line-height:1.55">
+        <p>Hi ${escapeHtml(safeName)},</p>
+        <p>We received a request to reset your TrackDesk password.</p>
+        <p><a href="${escapeHtml(resetUrl)}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:700">Choose a new password</a></p>
+        <p style="font-size:13px;color:#64748b">This link expires in ${escapeHtml(PASSWORD_RESET_TOKEN_EXPIRES_IN)}. If the button does not work, copy and paste this URL into your browser:<br/><span style="word-break:break-all">${escapeHtml(resetUrl)}</span></p>
+        <p style="font-size:12px;color:#64748b">If you did not request a reset, you can ignore this email.</p>
+      </div>
+    `,
+  })
+  const accepted = Array.isArray(info?.accepted) ? info.accepted : []
+  const rejected = Array.isArray(info?.rejected) ? info.rejected : []
+  if (accepted.length === 0 && rejected.length > 0) {
+    return { sent: false, message: `Email rejected by SMTP provider for ${toEmail}` }
+  }
+  return { sent: true, message: `Password reset email sent to ${toEmail}` }
+}
+
 const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@system.local'
 let adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
 const DEFAULT_ADMIN_NAME = process.env.ADMIN_NAME || 'System Admin'
 const JWT_SECRET = String(process.env.JWT_SECRET || 'dev-only-change-me')
 const JWT_EXPIRES_IN = String(process.env.JWT_EXPIRES_IN || '7d')
 const TRACKER_DOWNLOAD_TOKEN_EXPIRES_IN = String(process.env.TRACKER_DOWNLOAD_TOKEN_EXPIRES_IN || '5m')
+const PASSWORD_RESET_TOKEN_EXPIRES_IN = String(process.env.PASSWORD_RESET_TOKEN_EXPIRES_IN || '1h')
 
 function createAuthToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
@@ -589,6 +641,21 @@ function createTrackerInstallerDownloadToken(authPayload) {
     },
     JWT_SECRET,
     { expiresIn: TRACKER_DOWNLOAD_TOKEN_EXPIRES_IN },
+  )
+}
+
+function createPasswordResetToken(employee) {
+  const id = String(employee?.id ?? '')
+  const email = String(employee?.email || '').trim().toLowerCase()
+  if (!id || !email) throw new Error('Invalid employee for password reset token')
+  return jwt.sign(
+    {
+      purpose: 'password-reset',
+      sub: id,
+      email,
+    },
+    JWT_SECRET,
+    { expiresIn: PASSWORD_RESET_TOKEN_EXPIRES_IN },
   )
 }
 
@@ -734,6 +801,88 @@ app.post('/api/auth/change-password', requireBearerAuth, async (req, res) => {
   return res.json({ ok: true, message: 'Password changed successfully' })
 })
 
+const FORGOT_PASSWORD_PUBLIC_MESSAGE =
+  'If an account exists for this email, you will receive password reset instructions shortly.'
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase()
+  if (!email) {
+    return res.status(400).json({ message: 'email is required' })
+  }
+  if (!SIMPLE_EMAIL_RE.test(email)) {
+    return res.status(400).json({ message: 'Please enter a valid email address' })
+  }
+
+  const employee = employees.find((e) => String(e.email || '').trim().toLowerCase() === email)
+  if (!employee || employee.active === false) {
+    return res.json({ ok: true, message: FORGOT_PASSWORD_PUBLIC_MESSAGE })
+  }
+
+  try {
+    const resetToken = createPasswordResetToken(employee)
+    const mail = await sendPasswordResetEmail({
+      toEmail: employee.email,
+      fullName: employee.name,
+      resetToken,
+    })
+    if (!mail.sent) {
+      console.warn('[auth] forgot-password: email not sent:', mail.message)
+    }
+  } catch (err) {
+    console.error('[auth] forgot-password failed:', err?.message || err)
+  }
+
+  return res.json({ ok: true, message: FORGOT_PASSWORD_PUBLIC_MESSAGE })
+})
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  const rawToken = String(req.body?.token || '').trim()
+  const newPassword = String(req.body?.newPassword || '')
+  if (!rawToken || !newPassword) {
+    return res.status(400).json({ message: 'token and newPassword are required' })
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ message: 'New password must be at least 8 characters long' })
+  }
+
+  let decoded
+  try {
+    decoded = jwt.verify(rawToken, JWT_SECRET)
+  } catch {
+    return res.status(400).json({ message: 'Reset link is invalid or has expired. Request a new one.' })
+  }
+  if (decoded.purpose !== 'password-reset' || !decoded.sub) {
+    return res.status(400).json({ message: 'Reset link is invalid or has expired. Request a new one.' })
+  }
+
+  const employee = employees.find((e) => String(e.id) === String(decoded.sub))
+  if (!employee || employee.active === false) {
+    return res.status(400).json({ message: 'This account is no longer available. Contact your administrator.' })
+  }
+  const tokenEmail = String(decoded.email || '').trim().toLowerCase()
+  if (tokenEmail && String(employee.email || '').trim().toLowerCase() !== tokenEmail) {
+    return res.status(400).json({ message: 'Reset link is invalid or has expired. Request a new one.' })
+  }
+
+  const passwordMeta = createPasswordHash(newPassword)
+  employee.passwordSalt = passwordMeta.salt
+  employee.passwordHash = passwordMeta.hash
+  employee.passwordResetRequired = false
+  employee.updatedAt = new Date().toISOString()
+  writeActivity('auth.password.reset', {
+    employeeId: employee.id,
+    employeeName: employee.name,
+    email: employee.email,
+  })
+  try {
+    await saveDb()
+  } catch (err) {
+    console.error('[auth] reset-password save failed:', err?.message || err)
+    return res.status(500).json({ message: 'Could not save new password. Try again.' })
+  }
+  return res.json({ ok: true, message: 'Password updated. You can sign in with your new password.' })
+})
+
 app.post('/api/tracker/download-token', requireBearerAuth, (req, res) => {
   const token = createTrackerInstallerDownloadToken(req.auth)
   return res.json({ token })
@@ -744,7 +893,15 @@ app.get('/api/health', (req, res) => {
 })
 
 app.use('/api', (req, res, next) => {
-  if (req.path === '/auth/login' || req.path === '/health' || req.path === '/tracker/installer') return next()
+  if (
+    req.path === '/auth/login' ||
+    req.path === '/auth/forgot-password' ||
+    req.path === '/auth/reset-password' ||
+    req.path === '/health' ||
+    req.path === '/tracker/installer'
+  ) {
+    return next()
+  }
   return requireBearerAuth(req, res, next)
 })
 

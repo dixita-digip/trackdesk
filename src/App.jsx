@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, useNavigate, useLocation, Link, useSearchParams } from 'react-router-dom'
 import './App.css'
 import 'react-toastify/dist/ReactToastify.css'
 import { ToastContainer } from 'react-toastify'
@@ -63,6 +63,7 @@ import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlin
 import HourglassEmptyRoundedIcon from '@mui/icons-material/HourglassEmptyRounded'
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined'
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import FolderIcon from '@mui/icons-material/Folder'
 import AssignmentIcon from '@mui/icons-material/Assignment'
 import BarChartIcon from '@mui/icons-material/BarChart'
@@ -81,6 +82,8 @@ import {
   getTasks,
   changePassword,
   loginUser,
+  requestPasswordReset,
+  resetPasswordWithToken,
   markAllNotificationsRead,
   markNotificationRead,
   markNotificationsRead,
@@ -1343,9 +1346,88 @@ function TopBar({
 }
 
 /* ────────────────────────────────────────────────
-   Login Page
+   Auth pages (login, forgot password, reset)
 ──────────────────────────────────────────────── */
-function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLoginForm }) {
+const authPalette = {
+  ink: '#0f172a',
+  muted: '#64748b',
+  border: '#e2e8f0',
+  fieldBg: '#EBF2FF',
+  fieldBgHover: '#E3EDFC',
+  accent: '#6366f1',
+  accentDeep: '#4f46e5',
+}
+
+const authTextFieldSx = {
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '14px',
+    backgroundColor: authPalette.fieldBg,
+    transition: 'background-color 0.2s, box-shadow 0.2s',
+    '&:hover': { backgroundColor: authPalette.fieldBgHover },
+    '&.Mui-focused': {
+      backgroundColor: '#ffffff',
+      boxShadow: '0 0 0 4px rgba(99, 102, 241, 0.14)',
+    },
+    '&.Mui-disabled': {
+      backgroundColor: '#f1f5f9',
+    },
+    '& fieldset': { borderColor: authPalette.border },
+    '&:hover fieldset': { borderColor: '#cbd5e1' },
+    '&.Mui-focused fieldset': {
+      borderColor: authPalette.accent,
+      borderWidth: '1.5px',
+    },
+  },
+  '& .MuiOutlinedInput-input': {
+    py: 1.75,
+    px: 1.5,
+    fontSize: '0.9375rem',
+    fontWeight: 500,
+    color: authPalette.ink,
+  },
+  '& .MuiInputLabel-root': {
+    color: authPalette.muted,
+    fontWeight: 500,
+    fontSize: '0.875rem',
+    '&.Mui-focused': { color: authPalette.accent },
+  },
+}
+
+const authInputIconSx = { color: '#94a3b8' }
+
+const authPrimaryButtonSx = {
+  borderRadius: '14px',
+  py: 1.65,
+  background: `linear-gradient(135deg, #7c3aed 0%, ${authPalette.accent} 50%, ${authPalette.accentDeep} 100%)`,
+  textTransform: 'none',
+  fontSize: '0.95rem',
+  fontWeight: 700,
+  letterSpacing: '0.01em',
+  boxShadow: '0 10px 28px -6px rgba(99, 102, 241, 0.5)',
+  transition: 'transform 0.2s, box-shadow 0.2s, filter 0.2s',
+  '&:hover': {
+    background: `linear-gradient(135deg, #6d28d9 0%, #4f46e5 55%, #4338ca 100%)`,
+    boxShadow: '0 14px 34px -6px rgba(79, 70, 229, 0.55)',
+    transform: 'translateY(-1px)',
+  },
+  '&:active': { transform: 'translateY(0)' },
+  '&.Mui-disabled': {
+    background: '#c7d2fe',
+    color: '#fff',
+    boxShadow: 'none',
+  },
+}
+
+const authBackButtonSx = {
+  mt: 2,
+  color: authPalette.muted,
+  fontWeight: 700,
+  textTransform: 'none',
+  borderRadius: '10px',
+  '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.06)', color: authPalette.accentDeep },
+}
+
+function AuthPageShell({ title, subtitle, headerIcon: HeaderIcon = ShieldIcon, children, auxiliary }) {
   return (
     <Box
       sx={{
@@ -1359,7 +1441,6 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
         overflow: 'hidden',
       }}
     >
-      {/* Animated background blobs */}
       {[
         { top: '-15%', right: '-10%', w: 500, h: 500, color: 'rgba(124,58,237,0.18)' },
         { bottom: '-12%', left: '-10%', w: 420, h: 420, color: 'rgba(59,130,246,0.12)' },
@@ -1397,7 +1478,6 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
           zIndex: 1,
         }}
       >
-        {/* Left panel */}
         <Box
           sx={{
             p: { xs: 4, sm: 5, md: 6 },
@@ -1432,7 +1512,6 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
           ))}
 
           <Stack spacing={3} sx={{ position: 'relative', zIndex: 1 }}>
-            {/* Brand */}
             <Stack direction="row" spacing={1.5} alignItems="center">
               <Box
                 sx={{
@@ -1456,7 +1535,6 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
               </Box>
             </Stack>
 
-            {/* Headline */}
             <Box>
               <Typography fontWeight={900} sx={{ fontSize: { xs: '1.9rem', sm: '2.4rem', md: '2.8rem' }, lineHeight: 1.1, letterSpacing: '-0.03em', mb: 1.5 }}>
                 The professional<br />project workspace.
@@ -1466,14 +1544,13 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
               </Typography>
             </Box>
 
-            {/* Features */}
             <Stack spacing={1.8}>
               {[
                 { icon: <FolderIcon sx={{ fontSize: 20 }} />, title: 'Project Management', desc: 'Organize and track all your projects' },
-                { icon: <AssignmentIcon sx={{ fontSize: 20 }} />, title: 'Task Tracking', desc: 'Monitor tasks with priorities & due dates' },
+                { icon: <AssignmentIcon sx={{ fontSize: 20 }} />, title: 'Task Tracking', desc: 'Monitor tasks with priorities and due dates' },
                 { icon: <BarChartIcon sx={{ fontSize: 20 }} />, title: 'Analytics & Reports', desc: 'Generate insights and progress reports' },
               ].map((f) => (
-                <Stack key={f.title} direction="row" spacing={2} alignItems="center" style={{alignItems:"center"}}>
+                <Stack key={f.title} direction="row" spacing={2} alignItems="center">
                   <Box
                     sx={{
                       p: 1.2,
@@ -1494,11 +1571,10 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
               ))}
             </Stack>
 
-            {/* Tech chips */}
             <Box>
               <Typography sx={{ fontSize: '0.75rem', opacity: 0.55, mb: 1.2, fontWeight: 600 }}>Built with:</Typography>
               <Stack direction="row" spacing={0.8} flexWrap="wrap" gap={0.8}>
-                {['React', 'Vite', 'MUI', 'Node.js', 'Offline-First'].map((chip) => (
+                {['React', 'Vite', 'MUI', 'Node.js', 'Realtime sync'].map((chip) => (
                   <Chip
                     key={chip}
                     label={chip}
@@ -1520,141 +1596,62 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
           </Stack>
         </Box>
 
-        {/* Right panel – Login form */}
         <Box
           sx={{
             p: { xs: 3.25, sm: 4, md: 5 },
-            bgcolor: '#fff',
+            bgcolor: '#ffffff',
             display: 'flex',
             flexDirection: 'column',
+            minHeight: { xs: 'auto', md: 520 },
           }}
         >
-          <Box sx={{ mb: 3, textAlign: 'center' }}>
+          <Box sx={{ mb: 3.5, textAlign: 'center' }}>
             <Box
               sx={{
-                width: 54,
-                height: 54,
-                borderRadius: '16px',
-                background: 'linear-gradient(135deg, #7c3aed, #6366f1)',
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                background: `linear-gradient(145deg, #7c3aed, ${authPalette.accent})`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 mx: 'auto',
-                mb: 2.5,
-                boxShadow: '0 8px 28px rgba(124,58,237,0.35)',
+                mb: 2.25,
+                boxShadow: '0 10px 32px -8px rgba(99, 102, 241, 0.55)',
               }}
             >
-              <ShieldIcon sx={{ fontSize: 28, color: '#fff' }} />
+              <HeaderIcon sx={{ fontSize: 28, color: '#fff' }} />
             </Box>
-            <Typography fontWeight={700} sx={{ fontSize: '1.6rem', color: '#1e1b4b', letterSpacing: '-0.02em' }}>
-              Welcome back
+            <Typography
+              fontWeight={800}
+              sx={{
+                fontSize: { xs: '1.65rem', sm: '1.75rem' },
+                color: authPalette.ink,
+                letterSpacing: '-0.03em',
+                lineHeight: 1.2,
+              }}
+            >
+              {title}
             </Typography>
-            <Typography sx={{ mt: 0.6, color: '#94a3b8', fontSize: '0.9rem' }}>
-              Sign in to your workspace
+            <Typography
+              sx={{
+                mt: 1,
+                color: authPalette.muted,
+                fontSize: '0.9375rem',
+                lineHeight: 1.55,
+                px: 0.5,
+                maxWidth: 360,
+                mx: 'auto',
+              }}
+            >
+              {subtitle}
             </Typography>
           </Box>
 
-          <Stack spacing={2} component="form" onSubmit={onLogin} sx={{ flex: 1 }}>
-            <TextField
-              id="login-email"
-              label="Email address"
-              type="email"
-              value={loginForm.email}
-              onChange={(e) => setLoginForm((p) => ({ ...p, email: e.target.value }))}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <MailOutlinedIcon fontSize="small" sx={{ color: '#a78bfa' }} />
-                  </InputAdornment>
-                ),
-              }}
-              fullWidth
-              style={{padding:"0px !important"}}
-            />
-
-            <TextField
-              id="login-password"
-              label="Password"
-              type={showPassword ? 'text' : 'password'}
-              value={loginForm.password}
-              onChange={(e) => setLoginForm((p) => ({ ...p, password: e.target.value }))}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockOutlinedIcon fontSize="small" sx={{ color: '#a78bfa' }} />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowPassword((p) => !p)} size="small" edge="end">
-                      {showPassword
-                        ? <VisibilityOffOutlinedIcon fontSize="small" sx={{ color: '#a78bfa' }} />
-                        : <VisibilityOutlinedIcon fontSize="small" sx={{ color: '#a78bfa' }} />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-              fullWidth
-            />
-
-            <Stack direction="row" alignItems="center">
-              <Stack direction="row" alignItems="center" spacing={0.6}>
-                <Checkbox
-                  id="keep-signed-in"
-                  checked={loginForm.keepSignedIn}
-                  onChange={(e) => setLoginForm((p) => ({ ...p, keepSignedIn: e.target.checked }))}
-                  size="small"
-                  sx={{ color: '#c4b5fd', '&.Mui-checked': { color: '#7c3aed' }, p: 0.3 }}
-                />
-                <Typography component="label" htmlFor="keep-signed-in" sx={{ fontSize: '0.83rem', color: '#64748b', cursor: 'pointer', userSelect: 'none' }}>
-                  Keep me signed in
-                </Typography>
-              </Stack>
-            </Stack>
-
-            <Button
-              id="login-submit"
-              type="submit"
-              variant="contained"
-              size="large"
-              endIcon={<ArrowForwardRoundedIcon />}
-              sx={{
-                borderRadius: '13px',
-                py: 1.5,
-                background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
-                textTransform: 'none',
-                fontSize: '0.95rem',
-                fontWeight: 800,
-                letterSpacing: '0.01em',
-                boxShadow: '0 8px 28px rgba(124,58,237,0.4)',
-                transition: 'all 0.2s',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%)',
-                  boxShadow: '0 12px 36px rgba(124,58,237,0.5)',
-                  transform: 'translateY(-1px)',
-                },
-                '&:active': { transform: 'translateY(0)' },
-              }}
-            >
-              Sign in to workspace
-            </Button>
-
-            <Box
-              sx={{
-                p: 1.5,
-                borderRadius: '10px',
-                bgcolor: '#f8f7ff',
-                border: '1px solid rgba(124,58,237,0.1)',
-                textAlign: 'center',
-              }}
-            >
-              <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.5 }}>
-                Use employee email and password to login.
-                <br />
-                New employees get temporary password on email.
-              </Typography>
-            </Box>
-          </Stack>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {children}
+            {auxiliary}
+          </Box>
 
           <Box sx={{ mt: 'auto', pt: 3, textAlign: 'center' }}>
             <Typography sx={{ fontSize: '0.72rem', color: '#c0cad6' }}>
@@ -1664,6 +1661,332 @@ function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLogin
         </Box>
       </Card>
     </Box>
+  )
+}
+
+function LoginPage({ onLogin, showPassword, setShowPassword, loginForm, setLoginForm }) {
+  return (
+    <AuthPageShell title="Welcome back" subtitle="Sign in to your workspace" headerIcon={ShieldIcon}>
+      <Stack spacing={2.5} component="form" onSubmit={onLogin} sx={{ flex: 1 }}>
+        <TextField
+          id="login-email"
+          label="Email address"
+          type="email"
+          autoComplete="email"
+          value={loginForm.email}
+          onChange={(e) => setLoginForm((p) => ({ ...p, email: e.target.value }))}
+          sx={authTextFieldSx}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <MailOutlinedIcon fontSize="small" sx={authInputIconSx} />
+              </InputAdornment>
+            ),
+          }}
+          fullWidth
+        />
+
+        <TextField
+          id="login-password"
+          label="Password"
+          type={showPassword ? 'text' : 'password'}
+          autoComplete="current-password"
+          value={loginForm.password}
+          onChange={(e) => setLoginForm((p) => ({ ...p, password: e.target.value }))}
+          sx={authTextFieldSx}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <LockOutlinedIcon fontSize="small" sx={authInputIconSx} />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={() => setShowPassword((p) => !p)} size="small" edge="end" aria-label={showPassword ? 'Hide password' : 'Show password'} sx={{ color: authPalette.muted }}>
+                  {showPassword
+                    ? <VisibilityOffOutlinedIcon fontSize="small" />
+                    : <VisibilityOutlinedIcon fontSize="small" />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+          fullWidth
+        />
+
+        <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1.25} sx={{ pt: 0.25 }} style={{justifyContent: 'space-between', alignItems: 'center'}}>
+          <Stack direction="row" alignItems="center" spacing={0.75} style={{alignItems: 'center'}}>
+            <Checkbox
+              id="keep-signed-in"
+              checked={loginForm.keepSignedIn}
+              onChange={(e) => setLoginForm((p) => ({ ...p, keepSignedIn: e.target.checked }))}
+              size="small"
+              sx={{
+                color: '#c7d2fe',
+                p: 0.35,
+                '&.Mui-checked': { color: authPalette.accent },
+              }}
+            />
+            <Typography component="label" htmlFor="keep-signed-in" sx={{ fontSize: '0.875rem', color: authPalette.muted, cursor: 'pointer', userSelect: 'none', fontWeight: 500 }}>
+              Keep me signed in
+            </Typography>
+          </Stack>
+          <Typography
+            component={Link}
+            to="/forgot-password"
+            sx={{
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              color: authPalette.accent,
+              textDecoration: 'none',
+              '&:hover': { textDecoration: 'underline', color: authPalette.accentDeep },
+            }}
+          >
+            Forgot password?
+          </Typography>
+        </Stack>
+
+        <Button
+          id="login-submit"
+          type="submit"
+          variant="contained"
+          size="large"
+          fullWidth
+          disableElevation
+          endIcon={<ArrowForwardRoundedIcon />}
+          sx={authPrimaryButtonSx}
+        >
+          Sign in to workspace
+        </Button>
+
+        <Box
+          sx={{
+            p: 2,
+            borderRadius: '14px',
+            bgcolor: '#f8fafc',
+            border: `1px solid ${authPalette.border}`,
+            textAlign: 'center',
+          }}
+        >
+          <Typography sx={{ fontSize: '0.8125rem', color: authPalette.muted, lineHeight: 1.6, fontWeight: 500 }}>
+            Use your employee email and password. New team members receive a temporary password by email from your administrator.
+          </Typography>
+        </Box>
+      </Stack>
+    </AuthPageShell>
+  )
+}
+
+function ForgotPasswordPage({ setNotice }) {
+  const [email, setEmail] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [done, setDone] = useState(false)
+
+  async function onSubmit(e) {
+    e.preventDefault()
+    const trimmed = String(email || '').trim().toLowerCase()
+    if (!trimmed) {
+      setNotice({ type: 'warning', message: 'Please enter your email address.' })
+      return
+    }
+    setSubmitting(true)
+    try {
+      await requestPasswordReset({ email: trimmed })
+      setDone(true)
+      setNotice({
+        type: 'success',
+        message: 'If that email is registered, we sent reset instructions. Check your inbox and spam folder.',
+      })
+    } catch (err) {
+      setNotice({
+        type: 'error',
+        message: err?.response?.data?.message || err?.message || 'Could not start password reset.',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <AuthPageShell
+      title="Forgot password?"
+      subtitle="Enter your work email. If we find an active account, we will send a secure link to choose a new password."
+      headerIcon={MailOutlinedIcon}
+      auxiliary={(
+        <Button
+          component={Link}
+          to="/"
+          startIcon={<ArrowBackRoundedIcon />}
+          sx={authBackButtonSx}
+        >
+          Back to sign in
+        </Button>
+      )}
+    >
+      <Stack spacing={2.5} component="form" onSubmit={onSubmit}>
+        <TextField
+          label="Email address"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={done}
+          sx={authTextFieldSx}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <MailOutlinedIcon fontSize="small" sx={authInputIconSx} />
+              </InputAdornment>
+            ),
+          }}
+          fullWidth
+        />
+        <Button
+          type="submit"
+          variant="contained"
+          size="large"
+          fullWidth
+          disableElevation
+          disabled={submitting || done}
+          sx={authPrimaryButtonSx}
+        >
+          {done ? 'Email sent' : submitting ? 'Sending…' : 'Send reset link'}
+        </Button>
+        {done && (
+          <Box sx={{ p: 1.75, borderRadius: '14px', bgcolor: '#f8fafc', border: `1px solid ${authPalette.border}` }}>
+            <Typography sx={{ fontSize: '0.8125rem', color: authPalette.muted, lineHeight: 1.6, fontWeight: 500 }}>
+              Did not get an email? Confirm the address is correct, wait a few minutes, or ask your administrator to verify SMTP is configured on the server.
+            </Typography>
+          </Box>
+        )}
+      </Stack>
+    </AuthPageShell>
+  )
+}
+
+function ResetPasswordPage({ setNotice }) {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const token = String(searchParams.get('token') || '').trim()
+  const [showPw, setShowPw] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function onSubmit(e) {
+    e.preventDefault()
+    if (!token) {
+      setNotice({ type: 'error', message: 'This reset link is missing a token. Open the link from your email again.' })
+      return
+    }
+    if (newPassword.length < 8) {
+      setNotice({ type: 'warning', message: 'Password must be at least 8 characters.' })
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setNotice({ type: 'warning', message: 'Passwords do not match.' })
+      return
+    }
+    setSubmitting(true)
+    try {
+      await resetPasswordWithToken({ token, newPassword })
+      setNotice({ type: 'success', message: 'Password updated. You can sign in with your new password.' })
+      navigate('/', { replace: true })
+    } catch (err) {
+      setNotice({
+        type: 'error',
+        message: err?.response?.data?.message || err?.message || 'Could not reset password.',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (!token) {
+    return (
+      <AuthPageShell
+        title="Invalid or expired link"
+        subtitle="Request a new reset email from the sign-in page."
+        headerIcon={LockOutlinedIcon}
+        auxiliary={(
+          <Button component={Link} to="/" startIcon={<ArrowBackRoundedIcon />} sx={authBackButtonSx}>
+            Back to sign in
+          </Button>
+        )}
+      >
+        <Typography sx={{ color: authPalette.muted, fontSize: '0.9375rem', lineHeight: 1.65, fontWeight: 500 }}>
+          Open the password reset message we sent you and use the button or link inside. Links expire for security.
+        </Typography>
+      </AuthPageShell>
+    )
+  }
+
+  return (
+    <AuthPageShell
+      title="Choose a new password"
+      subtitle="Use at least 8 characters. Avoid reusing passwords from other sites."
+      headerIcon={LockOutlinedIcon}
+      auxiliary={(
+        <Button component={Link} to="/" startIcon={<ArrowBackRoundedIcon />} sx={authBackButtonSx}>
+          Back to sign in
+        </Button>
+      )}
+    >
+      <Stack spacing={2.5} component="form" onSubmit={onSubmit}>
+        <TextField
+          label="New password"
+          type={showPw ? 'text' : 'password'}
+          autoComplete="new-password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          sx={authTextFieldSx}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <LockOutlinedIcon fontSize="small" sx={authInputIconSx} />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={() => setShowPw((p) => !p)} size="small" edge="end" aria-label={showPw ? 'Hide password' : 'Show password'} sx={{ color: authPalette.muted }}>
+                  {showPw
+                    ? <VisibilityOffOutlinedIcon fontSize="small" />
+                    : <VisibilityOutlinedIcon fontSize="small" />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+          fullWidth
+        />
+        <TextField
+          label="Confirm new password"
+          type={showPw ? 'text' : 'password'}
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          sx={authTextFieldSx}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <LockOutlinedIcon fontSize="small" sx={authInputIconSx} />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={() => setShowPw((p) => !p)} size="small" edge="end" aria-label={showPw ? 'Hide password' : 'Show password'} sx={{ color: authPalette.muted }}>
+                  {showPw
+                    ? <VisibilityOffOutlinedIcon fontSize="small" />
+                    : <VisibilityOutlinedIcon fontSize="small" />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+          fullWidth
+        />
+        <Button type="submit" variant="contained" size="large" fullWidth disableElevation disabled={submitting} sx={authPrimaryButtonSx}>
+          {submitting ? 'Saving…' : 'Update password'}
+        </Button>
+      </Stack>
+    </AuthPageShell>
   )
 }
 
@@ -2265,13 +2588,22 @@ function App() {
         style={{ zIndex: 9999 }}
       />
       {!auth.signedIn ? (
-        <LoginPage
-          onLogin={handleLogin}
-          showPassword={showPassword}
-          setShowPassword={setShowPassword}
-          loginForm={loginForm}
-          setLoginForm={setLoginForm}
-        />
+        <Routes>
+          <Route path="/forgot-password" element={<ForgotPasswordPage setNotice={setNotice} />} />
+          <Route path="/reset-password" element={<ResetPasswordPage setNotice={setNotice} />} />
+          <Route
+            path="*"
+            element={(
+              <LoginPage
+                onLogin={handleLogin}
+                showPassword={showPassword}
+                setShowPassword={setShowPassword}
+                loginForm={loginForm}
+                setLoginForm={setLoginForm}
+              />
+            )}
+          />
+        </Routes>
       ) : (
         <Box sx={{ minHeight: '100vh', display: 'flex', bgcolor: '#f0effe' }}>
           <Sidebar
@@ -2878,7 +3210,12 @@ function App() {
                 ),
                 endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton onClick={() => setShowChangePassword((p) => !p)} size="small" edge="end">
+                    <IconButton
+                      onClick={() => setShowChangePassword((p) => !p)}
+                      size="small"
+                      edge="end"
+                      aria-label={showChangePassword ? 'Hide password' : 'Show password'}
+                    >
                       {showChangePassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
                     </IconButton>
                   </InputAdornment>
@@ -2905,6 +3242,18 @@ function App() {
                     <LockOutlinedIcon sx={{ color: '#8b5cf6', fontSize: 18 }} />
                   </InputAdornment>
                 ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowChangePassword((p) => !p)}
+                      size="small"
+                      edge="end"
+                      aria-label={showChangePassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showChangePassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {
@@ -2929,6 +3278,18 @@ function App() {
                 startAdornment: (
                   <InputAdornment position="start">
                     <LockOutlinedIcon sx={{ color: '#8b5cf6', fontSize: 18 }} />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowChangePassword((p) => !p)}
+                      size="small"
+                      edge="end"
+                      aria-label={showChangePassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showChangePassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+                    </IconButton>
                   </InputAdornment>
                 ),
               }}

@@ -18,6 +18,7 @@ const lastUpdatedEl = document.getElementById('lastUpdated')
 const orgTitleEl = document.getElementById('orgTitle')
 const authEmailInput = document.getElementById('authEmail')
 const authPasswordInput = document.getElementById('authPassword')
+const togglePasswordVisibilityBtn = document.getElementById('togglePasswordVisibility')
 const authStateEl = document.getElementById('authState')
 const loginStatusEl = document.getElementById('loginStatus')
 const loginBtn = document.getElementById('loginBtn')
@@ -95,6 +96,17 @@ function isEmployeeRole(role) {
   return normalizeLower(role) === 'employee'
 }
 
+function resetLoginPasswordVisibility() {
+  if (!authPasswordInput || !togglePasswordVisibilityBtn) return
+  authPasswordInput.type = 'password'
+  const iconShow = togglePasswordVisibilityBtn.querySelector('.password-toggle-show')
+  const iconHide = togglePasswordVisibilityBtn.querySelector('.password-toggle-hide')
+  if (iconShow) iconShow.classList.remove('hidden')
+  if (iconHide) iconHide.classList.add('hidden')
+  togglePasswordVisibilityBtn.setAttribute('aria-label', 'Show password')
+  togglePasswordVisibilityBtn.setAttribute('title', 'Show password')
+}
+
 function showEntrance() {
   if (entranceScreen) entranceScreen.classList.remove('hidden')
   if (loginFormScreen) loginFormScreen.classList.add('hidden')
@@ -105,6 +117,7 @@ function showLoginForm() {
   if (entranceScreen) entranceScreen.classList.add('hidden')
   if (loginFormScreen) loginFormScreen.classList.remove('hidden')
   setLoginStatus('')
+  resetLoginPasswordVisibility()
 }
 
 function formatDuration(totalSeconds) {
@@ -276,6 +289,7 @@ async function loginTrackerUser() {
       token: data?.token || '',
     }
     authPasswordInput.value = ''
+    resetLoginPasswordVisibility()
     applyAuthState()
     persistSettings()
     await refreshProjects(true)
@@ -300,6 +314,7 @@ async function logoutTrackerUser() {
   trackerBootstrapComplete = false
   hideTrackerLoading()
   authPasswordInput.value = ''
+  resetLoginPasswordVisibility()
   projectNameInput.value = ''
   taskIdInput.value = ''
   taskTitleInput.value = ''
@@ -728,6 +743,19 @@ if (typeof window !== 'undefined') {
   } else {
     registerSystemIdleListener()
   }
+}
+if (togglePasswordVisibilityBtn && authPasswordInput) {
+  const iconShow = togglePasswordVisibilityBtn.querySelector('.password-toggle-show')
+  const iconHide = togglePasswordVisibilityBtn.querySelector('.password-toggle-hide')
+  togglePasswordVisibilityBtn.addEventListener('click', () => {
+    const willShowPlain = authPasswordInput.type === 'password'
+    authPasswordInput.type = willShowPlain ? 'text' : 'password'
+    if (iconShow) iconShow.classList.toggle('hidden', willShowPlain)
+    if (iconHide) iconHide.classList.toggle('hidden', !willShowPlain)
+    const label = willShowPlain ? 'Hide password' : 'Show password'
+    togglePasswordVisibilityBtn.setAttribute('aria-label', label)
+    togglePasswordVisibilityBtn.setAttribute('title', label)
+  })
 }
 if (authPasswordInput) {
   authPasswordInput.addEventListener('keydown', (event) => {

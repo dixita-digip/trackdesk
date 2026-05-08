@@ -128,6 +128,16 @@ export async function changePassword(payload) {
   return data
 }
 
+export async function requestPasswordReset(payload) {
+  const { data } = await api.post('/auth/forgot-password', payload)
+  return data
+}
+
+export async function resetPasswordWithToken(payload) {
+  const { data } = await api.post('/auth/reset-password', payload)
+  return data
+}
+
 /** Short-lived JWT used only with GET /tracker/installer — lets the browser stream the file instead of buffering via fetch+blob. */
 export async function createTrackerDownloadToken() {
   const { data } = await api.post('/tracker/download-token')
