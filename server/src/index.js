@@ -328,10 +328,10 @@ function validateProjectDateRange(startDate, endDate) {
 }
 
 function allowedAssignee(project, assignee) {
-  const name = String(assignee || '').trim()
+  const name = String(assignee || '').trim().toLowerCase()
   if (!name) return true
   const members = Array.isArray(project?.members) ? project.members : []
-  return members.includes(name)
+  return members.some((member) => String(member || '').trim().toLowerCase() === name)
 }
 
 function writeActivity(action, details = {}) {

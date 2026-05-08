@@ -987,6 +987,13 @@ export default function TasksPage({
     return map
   }, [form.attachments])
 
+  const isProjectMember = useCallback((project, name) => {
+    const want = String(name || '').trim().toLowerCase()
+    if (!want) return false
+    const members = Array.isArray(project?.members) ? project.members : []
+    return members.some((member) => String(member || '').trim().toLowerCase() === want)
+  }, [])
+
   function resolveAttachmentUrl(rawHref) {
     const raw = String(rawHref || '')
     if (!raw.startsWith('attachment:')) return raw
@@ -996,10 +1003,10 @@ export default function TasksPage({
 
   useEffect(() => {
     if (!form.assignee) return
-    if (!currentFormProject || !Array.isArray(currentFormProject.members) || !currentFormProject.members.includes(form.assignee)) {
+    if (!currentFormProject || !isProjectMember(currentFormProject, form.assignee)) {
       setForm((f) => ({ ...f, assignee: null }))
     }
-  }, [currentFormProject, form.assignee])
+  }, [currentFormProject, form.assignee, isProjectMember])
 
   function updateDescriptionWithSelection(nextText, selectionStart, selectionEnd) {
     setForm((f) => ({ ...f, description: nextText }))
@@ -1195,7 +1202,7 @@ export default function TasksPage({
       return
     }
     const assigneeForSave = isEmployee && selfName ? selfName : form.assignee
-    if (assigneeForSave && currentFormProject?.members && !currentFormProject.members.includes(assigneeForSave)) {
+    if (assigneeForSave && currentFormProject && !isProjectMember(currentFormProject, assigneeForSave)) {
       setNotice?.({ type: 'error', message: 'Assignee must be a member of the selected project.' })
       return
     }
@@ -1806,8 +1813,8 @@ export default function TasksPage({
                     const filteredByMember = (employees || [])
                       .filter((e) => e.name.toLowerCase().includes(assigneeSearch.toLowerCase()))
                       .filter((e) => {
-                        if (!currentFormProject || !currentFormProject.members) return false
-                        return currentFormProject.members.includes(e.name)
+                        if (!currentFormProject) return false
+                        return isProjectMember(currentFormProject, e.name)
                       })
 
                     if (filteredByMember.length === 0) {
