@@ -105,7 +105,7 @@ import EmployeeDetailPage from './EmployeeDetailPage.jsx'
 import { DashboardPageSkeleton, EmployeesModuleSkeleton } from './pageSkeletons.jsx'
 import { notify } from './notify.js'
 
-const TRACKER_DOWNLOAD_URL = 'https://github.com/dixita-digip/trackdesk/releases/download/tracker-v1.1.0/tracker-setup.exe'
+const TRACKER_DOWNLOAD_URL = 'https://github.com/dixita-digip/trackdesk/releases/download/tracker-v1.2.0/tracker-setup.exe'
 // Optional but recommended: fill with the exact SHA-256 hash of the installer you uploaded.
 // If left empty, the UI will hide the hash section.
 const TRACKER_INSTALLER_SHA256 = '47130F3F643F36FEA3E429F2B5F412F912D7DA4D9C95F7DA0B1B2EA16F8B9366'
