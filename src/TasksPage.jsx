@@ -326,14 +326,18 @@ function KanbanColumn({ column, tasks, onAddInColumn, children, showAddControls 
   )
 }
 
-function TaskCard({ task, onEdit, isAdmin, onAdminToggleTimer, busy = false }) {
+function TaskCard({ task, onEdit, isAdmin, onAdminToggleTimer, busy = false, nowMs = Date.now() }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: String(task.id) })
   const slug = projectSlug(task.project)
   const pa = priorityAccent(task.priority)
   const isTimerRunning = Boolean(task?.activeTimer?.startedAt)
   const inProgress = canonicalStatus(task?.status) === 'in progress'
   const trackedSeconds = Number(task?.totalTrackedSeconds || 0)
-  const trackedMinutesTotal = Math.floor(trackedSeconds / 60)
+  const liveDeltaSeconds = isTimerRunning
+    ? Math.max(0, Math.floor((Number(nowMs) - new Date(task?.activeTimer?.startedAt || nowMs).getTime()) / 1000))
+    : 0
+  const shownTrackedSeconds = trackedSeconds + liveDeltaSeconds
+  const trackedMinutesTotal = Math.floor(shownTrackedSeconds / 60)
   const trackedHours = Math.floor(trackedMinutesTotal / 60)
   const trackedMinutes = trackedMinutesTotal % 60
   const trackedTimeLabel = `${trackedHours}h ${trackedMinutes}min tracked`
@@ -477,22 +481,18 @@ function TaskCard({ task, onEdit, isAdmin, onAdminToggleTimer, busy = false }) {
         </Typography>
         <Stack direction="row" alignItems="center" sx={{ justifyContent: 'space-between', minHeight: 24 }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
-            {isTimerRunning ? (
-              <Chip
-                label={`Running: ${task.activeTimer.userName || 'User'}`}
-                size="small"
-                sx={{
-                  height: 22,
-                  fontSize: '0.66rem',
-                  fontWeight: 700,
-                  bgcolor: 'rgba(16,185,129,0.16)',
-                  color: '#047857',
-                  border: '1px solid rgba(16,185,129,0.25)',
-                }}
-              />
-            ) : (
-              <Box />
-            )}
+            <Chip
+              label={isTimerRunning ? `Timer running: ${task.activeTimer.userName || 'User'}` : 'Timer stopped'}
+              size="small"
+              sx={{
+                height: 22,
+                fontSize: '0.66rem',
+                fontWeight: 700,
+                bgcolor: isTimerRunning ? 'rgba(16,185,129,0.16)' : 'rgba(148,163,184,0.18)',
+                color: isTimerRunning ? '#047857' : '#475569',
+                border: isTimerRunning ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(148,163,184,0.28)',
+              }}
+            />
           </Stack>
           <Typography sx={{ fontSize: '0.68rem', color: TEXT_MUTED, fontWeight: 700, flexShrink: 0 }}>
             {trackedTimeLabel}
@@ -823,6 +823,7 @@ export default function TasksPage({
   const [assigneeAnchor, setAssigneeAnchor] = useState(null)
   const [assigneeSearch, setAssigneeSearch] = useState('')
   const [adminTimerBusyTaskId, setAdminTimerBusyTaskId] = useState(null)
+  const [nowMs, setNowMs] = useState(Date.now())
   const descriptionInputRef = useRef(null)
   const attachmentInputRef = useRef(null)
 
@@ -918,6 +919,34 @@ export default function TasksPage({
       setNotice?.({ type: 'error', message: err?.message || 'Failed to refresh tasks' })
     }
   }
+
+  // Keep task state synced with desktop start/stop events quickly.
+  useEffect(() => {
+    let mounted = true
+    const id = window.setInterval(async () => {
+      try {
+        const latest = await getTasks()
+        if (mounted) setTasks(Array.isArray(latest) ? latest : [])
+      } catch {
+        // Silent background refresh; avoid noisy toasts.
+      }
+    }, 3000)
+    return () => {
+      mounted = false
+      window.clearInterval(id)
+    }
+  }, [setTasks])
+
+  const hasRunningTimers = useMemo(
+    () => visibleTasks.some((t) => Boolean(t?.activeTimer?.startedAt)),
+    [visibleTasks],
+  )
+
+  useEffect(() => {
+    if (!hasRunningTimers) return
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [hasRunningTimers])
 
   const handleAdminToggleTimer = async (task) => {
     if (!isAdmin) return
@@ -1486,6 +1515,7 @@ export default function TasksPage({
                     <TaskCard
                       key={task.id}
                       task={task}
+                      nowMs={nowMs}
                       onEdit={openEdit}
                       isAdmin={isAdmin}
                       busy={String(task.id) === String(adminTimerBusyTaskId)}

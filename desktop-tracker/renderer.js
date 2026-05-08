@@ -41,6 +41,7 @@ let startTime = null
 let todaySeconds = 0
 let projectRefreshId = null
 let activeSessionId = null
+let stopTimerSyncPromise = null
 let taskRows = []
 let projectRows = []
 let authUser = null
@@ -179,13 +180,9 @@ function pushSyncCredentials() {
 
 function restoreSettings() {
   const savedApiBase = String(localStorage.getItem('tracker-api-base') || '').trim().replace(/\/+$/, '')
-  const isLegacyLocalApiBase =
-    !savedApiBase ||
-    /^https?:\/\/localhost(?::\d+)?\/api$/i.test(savedApiBase) ||
-    /^https?:\/\/127\.0\.0\.1(?::\d+)?\/api$/i.test(savedApiBase)
-  const resolvedApiBase = isLegacyLocalApiBase ? DEFAULT_API_BASE : savedApiBase
+  const resolvedApiBase = savedApiBase || DEFAULT_API_BASE
   apiBaseInput.value = resolvedApiBase
-  if (isLegacyLocalApiBase) localStorage.setItem('tracker-api-base', resolvedApiBase)
+  if (!savedApiBase) localStorage.setItem('tracker-api-base', resolvedApiBase)
   userIdInput.value = localStorage.getItem('tracker-user-id') || ''
   userNameInput.value = localStorage.getItem('tracker-user-name') || ''
   const savedProject = localStorage.getItem('tracker-project-name') || ''
@@ -570,6 +567,13 @@ async function refreshProjects(showErrors = false) {
 
 async function startTimer() {
   if (timerId) return
+  if (stopTimerSyncPromise) {
+    try {
+      await stopTimerSyncPromise
+    } catch {
+      // Ignore; startTimer below still attempts a fresh server start.
+    }
+  }
   if (!authUser?.email) {
     setStatus('Please login first', true)
     return
@@ -593,33 +597,41 @@ async function startTimer() {
 }
 
 async function stopTimerAndSync() {
+  if (stopTimerSyncPromise) return stopTimerSyncPromise
   if (!timerId || !startTime) return
-  clearInterval(timerId)
-  timerId = null
-  stopBtn.disabled = true
-  startBtn.disabled = false
-  startBtn.textContent = '▶'
+  stopTimerSyncPromise = (async () => {
+    clearInterval(timerId)
+    timerId = null
+    stopBtn.disabled = true
+    startBtn.disabled = false
+    startBtn.textContent = '▶'
 
-  const endedAt = new Date()
-  const durationSeconds = Math.floor((endedAt.getTime() - startTime.getTime()) / 1000)
-  timerValue.textContent = formatDuration(durationSeconds)
-  todaySeconds += durationSeconds
-  localStorage.setItem('tracker-today-seconds', String(todaySeconds))
-  todayTime.textContent = `Today: ${formatDuration(todaySeconds).slice(3)}`
+    const endedAt = new Date()
+    const durationSeconds = Math.floor((endedAt.getTime() - startTime.getTime()) / 1000)
+    timerValue.textContent = formatDuration(durationSeconds)
+    todaySeconds += durationSeconds
+    localStorage.setItem('tracker-today-seconds', String(todaySeconds))
+    todayTime.textContent = `Today: ${formatDuration(todaySeconds).slice(3)}`
 
-  try {
-    persistSettings()
-    const synced = await stopRemoteTimer()
-    if (Number.isFinite(Number(synced?.durationSeconds))) {
-      timerValue.textContent = formatDuration(Number(synced.durationSeconds))
+    try {
+      persistSettings()
+      const synced = await stopRemoteTimer()
+      if (Number.isFinite(Number(synced?.durationSeconds))) {
+        timerValue.textContent = formatDuration(Number(synced.durationSeconds))
+      }
+      setStatus(`Synced ${formatDuration(durationSeconds)} successfully.`)
+    } catch (error) {
+      setStatus(error.message || 'Sync failed', true)
     }
-    setStatus(`Synced ${formatDuration(durationSeconds)} successfully.`)
-  } catch (error) {
-    setStatus(error.message || 'Sync failed', true)
-  }
 
-  updateLastUpdated()
-  pushTimerRunningForIdle()
+    updateLastUpdated()
+    pushTimerRunningForIdle()
+  })()
+  try {
+    await stopTimerSyncPromise
+  } finally {
+    stopTimerSyncPromise = null
+  }
 }
 
 function setActiveTask(taskId) {
