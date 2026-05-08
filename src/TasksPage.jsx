@@ -417,7 +417,7 @@ function TaskCard({ task, onEdit, isAdmin, onAdminToggleTimer, busy = false, now
                   </Avatar>
                 ) : null}
 
-                {isAdmin && inProgress ? (
+                {/* {isAdmin && inProgress ? (
                   <IconButton
                     size="small"
                     disableRipple
@@ -460,7 +460,7 @@ function TaskCard({ task, onEdit, isAdmin, onAdminToggleTimer, busy = false, now
                       <PlayArrowRoundedIcon sx={{ fontSize: 18, mb: '1px' }} />
                     )}
                   </IconButton>
-                ) : null}
+                ) : null} */}
               </Stack>
             )}
         </Stack>
@@ -479,25 +479,6 @@ function TaskCard({ task, onEdit, isAdmin, onAdminToggleTimer, busy = false, now
         >
           {task.title}
         </Typography>
-        <Stack direction="row" alignItems="center" sx={{ justifyContent: 'space-between', minHeight: 24 }}>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
-            <Chip
-              label={isTimerRunning ? `Timer running: ${task.activeTimer.userName || 'User'}` : 'Timer stopped'}
-              size="small"
-              sx={{
-                height: 22,
-                fontSize: '0.66rem',
-                fontWeight: 700,
-                bgcolor: isTimerRunning ? 'rgba(16,185,129,0.16)' : 'rgba(148,163,184,0.18)',
-                color: isTimerRunning ? '#047857' : '#475569',
-                border: isTimerRunning ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(148,163,184,0.28)',
-              }}
-            />
-          </Stack>
-          <Typography sx={{ fontSize: '0.68rem', color: TEXT_MUTED, fontWeight: 700, flexShrink: 0 }}>
-            {trackedTimeLabel}
-          </Typography>
-        </Stack>
       </Stack>
     </Paper>
   )
