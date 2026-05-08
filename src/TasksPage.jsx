@@ -836,14 +836,17 @@ export default function TasksPage({
         try {
           const data = await getProjects()
           if (mounted) setProjects(Array.isArray(data) ? data : [])
-        } catch {
-          if (mounted) setProjects([])
+        } catch (err) {
+          if (mounted) {
+            setProjects([])
+            setNotice?.({ type: 'error', message: err?.message || 'Failed to load projects' })
+          }
         } finally {
           if (mounted) setLoadingProjects(false)
         }
       })()
     return () => { mounted = false }
-  }, [])
+  }, [setNotice])
 
   useEffect(() => {
     const normalized = String(initialProjectFilter || 'all').trim().toLowerCase() || 'all'
@@ -857,13 +860,8 @@ export default function TasksPage({
       if (!name) continue
       byName.set(name.toLowerCase(), name)
     }
-    for (const t of tasks) {
-      const name = String(t?.project || '').trim()
-      if (!name) continue
-      if (!byName.has(name.toLowerCase())) byName.set(name.toLowerCase(), name)
-    }
     return Array.from(byName.values()).sort((a, b) => a.localeCompare(b))
-  }, [projects, tasks])
+  }, [projects])
 
   const employeeFilterOptions = useMemo(() => {
     const byKey = new Map()
