@@ -147,7 +147,7 @@ async function ensureBootstrapped() {
   return bootstrapPromise
 }
 
-const SCREEN_CAPTURES_MAX_PER_EMPLOYEE = 120
+const SCREEN_CAPTURES_MAX_PER_EMPLOYEE = Math.max(0, 500)
 const SCREEN_CAPTURE_MAX_BATCH = 8
 const SCREEN_CAPTURE_MAX_B64_CHARS = 6_000_000
 
@@ -183,6 +183,7 @@ function cloudinaryListPreviewUrl(url) {
 
 async function pruneTrackerScreenCaptures(supabase, employeeId) {
   const keep = SCREEN_CAPTURES_MAX_PER_EMPLOYEE
+  if (!Number.isFinite(keep) || keep <= 0) return
   const { data: rows, error } = await supabase
     .from('tracker_screen_captures')
     .select('id')
