@@ -37,16 +37,16 @@ function parseCorsOriginEnv(value) {
   return { exact, patterns }
 }
 
-const vercelTrackdeskRegex = /^https:\/\/trackdesk(-[a-z0-9-]+)?\.vercel\.app$/i
+const vercelDigitrackerRegex = /^https:\/\/digitracker(-[a-z0-9-]+)?\.vercel\.app$/i
 const envCors = parseCorsOriginEnv(process.env.CORS_ORIGIN)
 const corsExactOrigins = new Set([
   'http://localhost:5173',
   'http://127.0.0.1:5173',
-  'https://trackdesk.vercel.app',
-  'https://trackdesk-f1uj.onrender.com',
+  'https://digitracker.vercel.app',
+  'https://digitracker-f1uj.onrender.com',
   ...envCors.exact,
 ])
-const corsOriginPatterns = [vercelTrackdeskRegex, ...envCors.patterns]
+const corsOriginPatterns = [vercelDigitrackerRegex, ...envCors.patterns]
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -498,7 +498,7 @@ function escapeHtml(value) {
 /** Login link in welcome emails: APP_LOGIN_URL, else FRONTEND_URL, else local dev. Set in API .env. */
 function resolveLoginUrlForEmail() {
   const raw = String(process.env.APP_LOGIN_URL || process.env.FRONTEND_URL || '').trim()
-  if (!raw) return 'https://trackdesk.vercel.app/'
+  if (!raw) return 'https://digitracker.vercel.app/'
   return raw.replace(/\/$/, '')
 }
 
@@ -524,7 +524,7 @@ async function sendEmployeeWelcomeEmail({ toEmail, fullName, role, tempPassword 
     }
   }
   const loginUrl = resolveLoginUrlForEmail()
-  const fromName = String(process.env.SMTP_FROM_NAME || 'TrackDesk').trim() || 'TrackDesk'
+  const fromName = String(process.env.SMTP_FROM_NAME || 'DigiTracker').trim() || 'DigiTracker'
   const fromHeader = `"${fromName.replace(/"/g, '\\"')}" <${from}>`
   const supportEmail = String(process.env.SMTP_REPLY_TO || from).trim()
 
@@ -532,11 +532,11 @@ async function sendEmployeeWelcomeEmail({ toEmail, fullName, role, tempPassword 
     from: fromHeader,
     replyTo: supportEmail,
     to: toEmail,
-    subject: 'TrackDesk account details',
+    subject: 'DigiTracker account details',
     text: [
       `Hi ${fullName},`,
       '',
-      'Your TrackDesk account has been created.',
+      'Your DigiTracker account has been created.',
       `Role: ${role}`,
       `Username: ${toEmail}`,
       `Temporary password: ${tempPassword}`,
@@ -549,14 +549,14 @@ async function sendEmployeeWelcomeEmail({ toEmail, fullName, role, tempPassword 
     html: `
       <div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;line-height:1.55">
         <p>Hi ${escapeHtml(fullName)},</p>
-        <p>Your TrackDesk account has been created.</p>
+        <p>Your DigiTracker account has been created.</p>
         <table style="border-collapse:collapse;margin:12px 0">
           <tr><td style="padding:6px 10px 6px 0;font-weight:700">Role</td><td style="padding:6px 0">${escapeHtml(role)}</td></tr>
           <tr><td style="padding:6px 10px 6px 0;font-weight:700">Username</td><td style="padding:6px 0">${escapeHtml(toEmail)}</td></tr>
           <tr><td style="padding:6px 10px 6px 0;font-weight:700">Temporary password</td><td style="padding:6px 0"><code style="background:#f8fafc;border:1px solid #e2e8f0;padding:2px 6px;border-radius:6px">${escapeHtml(tempPassword)}</code></td></tr>
           <tr><td style="padding:6px 10px 6px 0;font-weight:700;vertical-align:top">Login URL</td><td style="padding:6px 0"><a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a></td></tr>
         </table>
-        <p><a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:700">Open TrackDesk</a></p>
+        <p><a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:700">Open DigiTracker</a></p>
         <p>Please sign in and change your password.</p>
         <p style="font-size:12px;color:#64748b">If you did not expect this email, contact your administrator.</p>
       </div>
@@ -583,7 +583,7 @@ async function sendPasswordResetEmail({ toEmail, fullName, resetToken }) {
   }
   const loginBase = resolveLoginUrlForEmail()
   const resetUrl = `${loginBase}/reset-password?token=${encodeURIComponent(resetToken)}`
-  const fromName = String(process.env.SMTP_FROM_NAME || 'TrackDesk').trim() || 'TrackDesk'
+  const fromName = String(process.env.SMTP_FROM_NAME || 'DigiTracker').trim() || 'DigiTracker'
   const fromHeader = `"${fromName.replace(/"/g, '\\"')}" <${from}>`
   const supportEmail = String(process.env.SMTP_REPLY_TO || from).trim()
   const safeName = fullName || toEmail
@@ -592,11 +592,11 @@ async function sendPasswordResetEmail({ toEmail, fullName, resetToken }) {
     from: fromHeader,
     replyTo: supportEmail,
     to: toEmail,
-    subject: 'Reset your TrackDesk password',
+    subject: 'Reset your DigiTracker password',
     text: [
       `Hi ${safeName},`,
       '',
-      'We received a request to reset your TrackDesk password.',
+      'We received a request to reset your DigiTracker password.',
       '',
       `Reset link (expires in ${PASSWORD_RESET_TOKEN_EXPIRES_IN}):`,
       resetUrl,
@@ -606,7 +606,7 @@ async function sendPasswordResetEmail({ toEmail, fullName, resetToken }) {
     html: `
       <div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;line-height:1.55">
         <p>Hi ${escapeHtml(safeName)},</p>
-        <p>We received a request to reset your TrackDesk password.</p>
+        <p>We received a request to reset your DigiTracker password.</p>
         <p><a href="${escapeHtml(resetUrl)}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:700">Choose a new password</a></p>
         <p style="font-size:13px;color:#64748b">This link expires in ${escapeHtml(PASSWORD_RESET_TOKEN_EXPIRES_IN)}. If the button does not work, copy and paste this URL into your browser:<br/><span style="word-break:break-all">${escapeHtml(resetUrl)}</span></p>
         <p style="font-size:12px;color:#64748b">If you did not request a reset, you can ignore this email.</p>

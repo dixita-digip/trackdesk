@@ -1,4 +1,4 @@
-# TrackDesk Desktop Tracker
+# DigiTracker Desktop Tracker
 
 This desktop app is used to track work time and sync it to the website API.
 

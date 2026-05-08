@@ -3,7 +3,7 @@
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
-public static class TrackDeskIdle {
+public static class DigiTrackerIdle {
   [DllImport("user32.dll")]
   private static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
   [StructLayout(LayoutKind.Sequential)]
@@ -21,4 +21,4 @@ public static class TrackDeskIdle {
   }
 }
 '@
-[TrackDeskIdle]::GetIdleSeconds()
+[DigiTrackerIdle]::GetIdleSeconds()

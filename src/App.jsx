@@ -46,7 +46,6 @@ import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
 import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined'
-import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined'
 import MailOutlinedIcon from '@mui/icons-material/MailOutlined'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
@@ -105,7 +104,7 @@ import EmployeeDetailPage from './EmployeeDetailPage.jsx'
 import { DashboardPageSkeleton, EmployeesModuleSkeleton } from './pageSkeletons.jsx'
 import { notify } from './notify.js'
 
-const TRACKER_DOWNLOAD_URL = 'https://github.com/dixita-digip/trackdesk/releases/download/tracker-v1.2.0/tracker-setup.exe'
+const TRACKER_DOWNLOAD_URL = 'https://github.com/dixita-digip/digitracker/releases/download/tracker-v1.2.0/tracker-setup.exe'
 // Optional but recommended: fill with the exact SHA-256 hash of the installer you uploaded.
 // If left empty, the UI will hide the hash section.
 const TRACKER_INSTALLER_SHA256 = '47130F3F643F36FEA3E429F2B5F412F912D7DA4D9C95F7DA0B1B2EA16F8B9366'
@@ -471,7 +470,6 @@ const navItems = [
   { label: 'Tasks', icon: <TaskOutlinedIcon fontSize="small" /> },
   { label: 'Employees', icon: <GroupsOutlinedIcon fontSize="small" /> },
   { label: 'Reports', icon: <AssessmentOutlinedIcon fontSize="small" /> },
-  { label: 'Notifications', icon: <NotificationsOutlinedIcon fontSize="small" /> },
 ]
 
 const TEAM_ROW_AVATAR_COLORS = ['#10b981', '#9333ea', '#3b82f6', '#f59e0b', '#ec4899']
@@ -924,7 +922,7 @@ function Sidebar({ selectedNav, onNavChange, onLogout, isMobile, open, onClose, 
           </Box>
           <Box>
             <Typography style={{fontSize: '1.3rem', color: '#fff', fontWeight: 800, lineHeight: 1.2, letterSpacing: '-0.01em'}}>
-              TrackDesk
+              DigiTracker
             </Typography>
             <Typography style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.7)', textTransform: 'uppercase', letterSpacing: 1.2, fontWeight: 600 }}>
               PM&T System
@@ -1042,7 +1040,7 @@ function TopBar({
             <ShieldIcon sx={{ fontSize: 17, color: '#fff' }} />
           </Box>
           <Box>
-            <Typography fontWeight={800} sx={{ fontSize: '0.95rem', color: '#1e1b4b', lineHeight: 1.2, letterSpacing: '-0.01em' }}>TrackDesk</Typography>
+            <Typography fontWeight={800} sx={{ fontSize: '0.95rem', color: '#1e1b4b', lineHeight: 1.2, letterSpacing: '-0.01em' }}>DigiTracker</Typography>
             <Typography sx={{ fontSize: '0.6rem', color: '#94a3b8', lineHeight: 1.1, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: 600 }}>PM&T System</Typography>
           </Box>
         </Stack>
@@ -2176,7 +2174,7 @@ function App() {
   }, [])
   const [selectedNav, setSelectedNav] = useState(() => {
     try {
-      return localStorage.getItem('trackdesk-selected-nav') || 'Dashboard'
+      return localStorage.getItem('digitracker-selected-nav') || 'Dashboard'
     } catch { return 'Dashboard' }
   })
   const [selectedTaskProject, setSelectedTaskProject] = useState('all')
@@ -2184,7 +2182,7 @@ function App() {
   const [showPassword, setShowPassword] = useState(false)
   const [auth, setAuth] = useState(() => {
     try {
-      const saved = localStorage.getItem('trackdesk-auth')
+      const saved = localStorage.getItem('digitracker-auth')
       if (!saved) return { signedIn: false, keepSignedIn: true }
       const p = JSON.parse(saved)
       const role = normalizeRole(p.role)
@@ -2243,7 +2241,7 @@ function App() {
     const allowed = allowedNavLabels(auth.role)
     if (!allowed.includes(selectedNav)) {
       setSelectedNav('Dashboard')
-      try { localStorage.setItem('trackdesk-selected-nav', 'Dashboard') } catch { /* ignore */ }
+      try { localStorage.setItem('digitracker-selected-nav', 'Dashboard') } catch { /* ignore */ }
     }
   }, [auth.signedIn, auth.role, selectedNav])
 
@@ -2252,7 +2250,7 @@ function App() {
     if (!/^\/employees\/\d+$/.test(location.pathname)) return
     setSelectedNav('Employees')
     try {
-      localStorage.setItem('trackdesk-selected-nav', 'Employees')
+      localStorage.setItem('digitracker-selected-nav', 'Employees')
     } catch {
       /* ignore */
     }
@@ -2338,15 +2336,15 @@ function App() {
       setSelectedNav('Dashboard')
       setSelectedTaskProject('all')
       try {
-        localStorage.setItem('trackdesk-selected-nav', 'Dashboard')
+        localStorage.setItem('digitracker-selected-nav', 'Dashboard')
       } catch {
         /* ignore */
       }
       setNotice({ type: 'success', message: `Welcome back${next.displayName ? `, ${next.displayName}` : ''}!` })
       if (loginForm.keepSignedIn) {
-        try { localStorage.setItem('trackdesk-auth', JSON.stringify(next)) } catch (err) { console.warn('Failed to persist auth', err) }
+        try { localStorage.setItem('digitracker-auth', JSON.stringify(next)) } catch (err) { console.warn('Failed to persist auth', err) }
       } else {
-        try { localStorage.removeItem('trackdesk-auth') } catch (err) { console.warn('Failed to remove auth', err) }
+        try { localStorage.removeItem('digitracker-auth') } catch (err) { console.warn('Failed to remove auth', err) }
       }
       if (next.passwordResetRequired) {
         setNotice({ type: 'warning', message: 'Please change your temporary password before continuing.' })
@@ -2364,7 +2362,7 @@ function App() {
   function handleLogout() {
     clearAuthToken()
     setAuth({ signedIn: false, keepSignedIn: false })
-    try { localStorage.removeItem('trackdesk-auth') } catch (err) { console.warn('Failed to remove auth', err) }
+    try { localStorage.removeItem('digitracker-auth') } catch (err) { console.warn('Failed to remove auth', err) }
   }
 
   function openChangePasswordDialog() {
@@ -2403,7 +2401,7 @@ function App() {
       const nextAuth = { ...auth, passwordResetRequired: false }
       setAuth(nextAuth)
       if (nextAuth.keepSignedIn) {
-        try { localStorage.setItem('trackdesk-auth', JSON.stringify(nextAuth)) } catch { /* ignore */ }
+        try { localStorage.setItem('digitracker-auth', JSON.stringify(nextAuth)) } catch { /* ignore */ }
       }
       setNotice({ type: 'success', message: 'Password updated successfully.' })
     } catch (error) {
@@ -2421,7 +2419,7 @@ function App() {
       navigate('/')
     }
     setSelectedNav(nextNav)
-    localStorage.setItem('trackdesk-selected-nav', nextNav)
+    localStorage.setItem('digitracker-selected-nav', nextNav)
     if (nextNav === 'Tasks') setSelectedTaskProject('all')
   }
 
@@ -2429,28 +2427,28 @@ function App() {
     const normalized = String(projectName || '').trim().toLowerCase()
     setSelectedTaskProject(normalized || 'all')
     setSelectedNav('Tasks')
-    localStorage.setItem('trackdesk-selected-nav', 'Tasks')
+    localStorage.setItem('digitracker-selected-nav', 'Tasks')
   }
 
   function handleOpenProjectsModule() {
     setSelectedNav('Projects')
-    localStorage.setItem('trackdesk-selected-nav', 'Projects')
+    localStorage.setItem('digitracker-selected-nav', 'Projects')
   }
 
   function handleOpenMyTasksModule() {
     setSelectedTaskProject('all')
     setSelectedNav('Tasks')
-    localStorage.setItem('trackdesk-selected-nav', 'Tasks')
+    localStorage.setItem('digitracker-selected-nav', 'Tasks')
   }
 
   function handleOpenHelpSupportModule() {
     setSelectedNav('Help & Support')
-    localStorage.setItem('trackdesk-selected-nav', 'Help & Support')
+    localStorage.setItem('digitracker-selected-nav', 'Help & Support')
   }
 
   function handleOpenNotificationsModule() {
     setSelectedNav('Notifications')
-    localStorage.setItem('trackdesk-selected-nav', 'Notifications')
+    localStorage.setItem('digitracker-selected-nav', 'Notifications')
   }
 
   async function handleMarkNotificationRead(id) {
@@ -2704,7 +2702,7 @@ function App() {
                         navigate('/')
                         setSelectedNav('Employees')
                         try {
-                          localStorage.setItem('trackdesk-selected-nav', 'Employees')
+                          localStorage.setItem('digitracker-selected-nav', 'Employees')
                         } catch {
                           /* ignore */
                         }

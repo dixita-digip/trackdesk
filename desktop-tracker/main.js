@@ -4,7 +4,7 @@ const { existsSync } = require('fs')
 const fs = require('fs/promises')
 const path = require('path')
 
-// Repo root .env (e.g. d:/Projects/trackdesk/.env), then desktop-tracker/.env, then cwd — later wins
+// Repo root .env (e.g. d:/Projects/digitracker/.env), then desktop-tracker/.env, then cwd — later wins
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
 require('dotenv').config({ path: path.join(__dirname, '.env'), override: true })
 require('dotenv').config({ path: path.join(process.cwd(), '.env'), override: true })
@@ -76,7 +76,7 @@ function getSystemIdleSeconds() {
       return n
     }
   } catch (e) {
-    console.warn('[TrackDesk] Idle detection unavailable:', e?.message || e)
+    console.warn('[DigiTracker] Idle detection unavailable:', e?.message || e)
   }
   return 0
 }
@@ -85,7 +85,7 @@ function getWindowsIdleSecondsPowerShell() {
   return new Promise((resolve) => {
     const scriptPath = getWinIdleScriptPath()
     if (!existsSync(scriptPath)) {
-      console.warn('[TrackDesk] Missing win-idle.ps1 at', scriptPath)
+      console.warn('[DigiTracker] Missing win-idle.ps1 at', scriptPath)
       resolve(-1)
       return
     }
@@ -96,7 +96,7 @@ function getWindowsIdleSecondsPowerShell() {
       (err, stdout) => {
         if (err) {
           if (process.env.TRACKER_IDLE_DEBUG === '1') {
-            console.warn('[TrackDesk] win-idle.ps1 failed:', err.message || err)
+            console.warn('[DigiTracker] win-idle.ps1 failed:', err.message || err)
           }
           resolve(-1)
           return
@@ -298,7 +298,7 @@ function isCloudinaryConfigured() {
 /** Default folder unless CLOUDINARY_FOLDER is explicitly empty (omit param for preset-only folder). */
 function getCloudinaryFolder() {
   if (!Object.prototype.hasOwnProperty.call(process.env, 'CLOUDINARY_FOLDER')) {
-    return 'trackdesk/screenshots'
+    return 'digitracker/screenshots'
   }
   const v = String(process.env.CLOUDINARY_FOLDER ?? '').trim()
   return v || null
@@ -326,7 +326,7 @@ async function uploadPngToCloudinary(pngBuffer, publicIdBase) {
   const form = new FormData()
   // Multipart binary upload (Buffer is a valid BlobPart in Node / Electron)
   const blob = new Blob([pngBuffer], { type: 'image/png' })
-  form.append('file', blob, 'trackdesk-capture.png')
+  form.append('file', blob, 'digitracker-capture.png')
   form.append('upload_preset', uploadPreset)
   if (folder) form.append('folder', folder)
   form.append('public_id', publicId)
@@ -338,10 +338,10 @@ async function uploadPngToCloudinary(pngBuffer, publicIdBase) {
     })
     const text = await res.text()
     if (!res.ok) {
-      console.warn('[TrackDesk] Cloudinary HTTP', res.status, text.slice(0, 500))
+      console.warn('[DigiTracker] Cloudinary HTTP', res.status, text.slice(0, 500))
       try {
         const errJson = JSON.parse(text)
-        if (errJson?.error?.message) console.warn('[TrackDesk] Cloudinary:', errJson.error.message)
+        if (errJson?.error?.message) console.warn('[DigiTracker] Cloudinary:', errJson.error.message)
       } catch {
         /* not JSON */
       }
@@ -349,10 +349,10 @@ async function uploadPngToCloudinary(pngBuffer, publicIdBase) {
     }
     const json = JSON.parse(text)
     const url = json?.secure_url || null
-    if (!url) console.warn('[TrackDesk] Cloudinary: missing secure_url in response')
+    if (!url) console.warn('[DigiTracker] Cloudinary: missing secure_url in response')
     return url
   } catch (e) {
-    console.warn('[TrackDesk] Cloudinary upload failed:', e?.message || e)
+    console.warn('[DigiTracker] Cloudinary upload failed:', e?.message || e)
     return null
   }
 }
@@ -422,7 +422,7 @@ async function uploadScreenCapturesToApi(captures, capturedAt) {
   const token = String(syncToken || '').trim()
   if (!base || !token || !captures?.length) {
     if (captures?.length && (!base || !token)) {
-      console.warn('[TrackDesk] Screen captures saved locally; sign in to the tracker to sync previews to the server.')
+      console.warn('[DigiTracker] Screen captures saved locally; sign in to the tracker to sync previews to the server.')
     }
     return
   }
@@ -439,17 +439,17 @@ async function uploadScreenCapturesToApi(captures, capturedAt) {
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      console.warn('[TrackDesk] Screenshot upload failed:', res.status, err?.message || '')
+      console.warn('[DigiTracker] Screenshot upload failed:', res.status, err?.message || '')
     }
   } catch (e) {
-    console.warn('[TrackDesk] Screenshot upload error:', e?.message || e)
+    console.warn('[DigiTracker] Screenshot upload error:', e?.message || e)
   }
 }
 
 async function captureAllDisplaysToFilesAndSync() {
   const displays = screen.getAllDisplays()
   if (!displays.length) {
-    console.warn('[TrackDesk] No displays found for capture')
+    console.warn('[DigiTracker] No displays found for capture')
     return
   }
 
@@ -465,7 +465,7 @@ async function captureAllDisplaysToFilesAndSync() {
     const source = await resolveSourceForDisplay(display)
     if (!source) {
       console.warn(
-        `[TrackDesk] No capture for display ${di} — if thumbnails stay empty, check Windows Settings → Privacy → Captures for this app`
+        `[DigiTracker] No capture for display ${di} — if thumbnails stay empty, check Windows Settings → Privacy → Captures for this app`
       )
       continue
     }
@@ -483,7 +483,7 @@ async function captureAllDisplaysToFilesAndSync() {
     if (isCloudinaryConfigured()) {
       const imageUrl = await uploadPngToCloudinary(png, idBase)
       if (imageUrl) apiEntry = { displayIndex: di, imageUrl }
-      else console.warn('[TrackDesk] Cloudinary failed for display', di, '— using base64 to API.')
+      else console.warn('[DigiTracker] Cloudinary failed for display', di, '— using base64 to API.')
     }
     if (!apiEntry) {
       apiEntry = { displayIndex: di, imageBase64: png.toString('base64') }
@@ -492,10 +492,10 @@ async function captureAllDisplaysToFilesAndSync() {
   }
 
   if (uploadPayload.length) {
-    console.log(`[TrackDesk] Saved ${uploadPayload.length} screen capture(s) →`, getScreenshotsDir())
+    console.log(`[DigiTracker] Saved ${uploadPayload.length} screen capture(s) →`, getScreenshotsDir())
   } else {
     console.warn(
-      '[TrackDesk] No screen captures produced — thumbnails were empty. On Windows 11: Settings → Privacy & security → Captures (and screen recording if listed).'
+      '[DigiTracker] No screen captures produced — thumbnails were empty. On Windows 11: Settings → Privacy & security → Captures (and screen recording if listed).'
     )
   }
 
@@ -508,7 +508,7 @@ async function runScreenshotTick() {
   try {
     await captureAllDisplaysToFilesAndSync()
   } catch (err) {
-    console.error('[TrackDesk] Screenshot failed:', err)
+    console.error('[DigiTracker] Screenshot failed:', err)
   } finally {
     screenshotInFlight = false
   }
@@ -552,7 +552,7 @@ function scheduleRandomCapturesWithinHour() {
   screenshotScheduleTimeoutIds.push(chainId)
 
   console.log(
-    `[TrackDesk] Scheduled ${n} random screen capture(s) over the next ~60 minutes (then a new random plan).`,
+    `[DigiTracker] Scheduled ${n} random screen capture(s) over the next ~60 minutes (then a new random plan).`,
   )
 }
 
@@ -575,7 +575,7 @@ function createWindow() {
     height: 538,
     minWidth: 380,
     minHeight: 560,
-    title: 'TrackDesk Tracker',
+    title: 'DigiTracker Tracker',
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -601,14 +601,14 @@ app.whenReady().then(() => {
     const fd = getCloudinaryFolder()
     const cloud = String(process.env.CLOUDINARY_CLOUD_NAME || '').trim()
     console.log(
-      '[TrackDesk] Cloudinary OK — cloud:',
+      '[DigiTracker] Cloudinary OK — cloud:',
       cloud.slice(0, 6) + (cloud.length > 6 ? '…' : ''),
       'folder:',
       fd || '(preset default only)',
     )
   } else {
     console.log(
-      '[TrackDesk] Cloudinary not configured. Set CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET in',
+      '[DigiTracker] Cloudinary not configured. Set CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET in',
       path.join(__dirname, '..', '.env'),
       'or',
       path.join(__dirname, '.env'),

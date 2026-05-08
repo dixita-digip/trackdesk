@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@mui/material'
 
-/** Matches list/table skeleton tone used across TrackDesk */
+/** Matches list/table skeleton tone used across DigiTracker */
 const sk = {
   bgcolor: 'rgba(148, 163, 184, 0.22)',
   animation: 'wave',

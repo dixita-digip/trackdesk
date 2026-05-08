@@ -1,13 +1,13 @@
-# TrackDesk
+# DigiTracker
 
-TrackDesk is a modern work management and time-tracking platform designed for engineering and operations teams.  
+DigiTracker is a modern work management and time-tracking platform designed for engineering and operations teams.  
 It combines project execution visibility, task lifecycle management, employee accountability, and desktop-based time capture in one unified system.
 
 ---
 
 ## Overview
 
-TrackDesk includes three integrated applications:
+DigiTracker includes three integrated applications:
 
 - **Web Application** (`React + Vite`) for day-to-day operations and reporting
 - **Backend API** (`Node.js + Express`) for business logic and persistence

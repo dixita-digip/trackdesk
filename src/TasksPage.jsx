@@ -81,7 +81,7 @@ import { createTask, deleteTask, getProjects, getTasks, startTrackerTimer, stopT
 import { TasksBoardSkeleton } from './pageSkeletons.jsx'
 
 /**
- * TrackDesk Kanban — light board (white / soft lavender), dark text; accent #7c4dff
+ * DigiTracker Kanban — light board (white / soft lavender), dark text; accent #7c4dff
  */
 const PRIMARY = '#7c4dff'
 const PRIMARY_DARK = '#6d28d9'

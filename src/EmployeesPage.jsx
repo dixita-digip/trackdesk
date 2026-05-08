@@ -109,7 +109,7 @@ function TeamTableEmptyState({ onAddEmployee }) {
                     maxWidth: 520,
                   }}
                 >
-                  Add your first employee to assign roles, track tasks, and manage who can access TrackDesk.
+                  Add your first employee to assign roles, track tasks, and manage who can access DigiTracker.
                 </Typography>
               </Box>
             </Stack>

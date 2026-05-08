@@ -47,7 +47,7 @@ let taskRows = []
 let projectRows = []
 let authUser = null
 let trackerBootstrapComplete = false
-const DEFAULT_API_BASE = 'https://trackdesk-server.vercel.app/api'
+const DEFAULT_API_BASE = 'https://digitracker-server.vercel.app/api'
 
 function showTrackerLoading() {
   if (trackerLoadingOverlay) trackerLoadingOverlay.classList.remove('hidden')
@@ -745,7 +745,7 @@ if (typeof window !== 'undefined') {
         if (timerId) await stopTimerAndSync()
       })
     } else {
-      console.warn('[TrackDesk] trackerApp.onSystemIdle missing — idle stop will not run')
+      console.warn('[DigiTracker] trackerApp.onSystemIdle missing — idle stop will not run')
     }
     if (typeof window.trackerApp?.onIdleOverlayResume === 'function') {
       window.trackerApp.onIdleOverlayResume(async () => {

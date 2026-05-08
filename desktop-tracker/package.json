@@ -1,17 +1,17 @@
 {
-  "name": "trackdesk-tracker",
+  "name": "digitracker-tracker",
   "version": "1.0.0",
-  "description": "Desktop time tracker app for TrackDesk",
+  "description": "Desktop time tracker app for DigiTracker",
   "main": "main.js",
-  "author": "TrackDesk",
+  "author": "DigiTracker",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
     "build:win": "electron-builder --win nsis"
   },
   "build": {
-    "appId": "com.trackdesk.tracker",
-    "productName": "TrackDesk Tracker",
+    "appId": "com.digitracker.tracker",
+    "productName": "DigiTracker Tracker",
     "artifactName": "tracker-setup.${ext}",
     "directories": {
       "output": "dist"
