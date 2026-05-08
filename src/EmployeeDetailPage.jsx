@@ -6,6 +6,8 @@ import {
   Card,
   Chip,
   CircularProgress,
+  Dialog,
+  IconButton,
   Pagination,
   Skeleton,
   Stack,
@@ -26,6 +28,12 @@ import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined'
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined'
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
+import CloseIcon from '@mui/icons-material/Close'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import ZoomInIcon from '@mui/icons-material/ZoomIn'
+import ZoomOutIcon from '@mui/icons-material/ZoomOut'
+import DownloadIcon from '@mui/icons-material/Download'
 import { getProjects, getTimesheetReport, getEmployeeScreenCaptures } from './services/api'
 import { canManageEmployees } from './authRoles.js'
 import { DataTableSkeleton, EmployeeDetailFiveColTableSkeleton, EmployeeDetailTimesheetToolbarSkeleton } from './pageSkeletons.jsx'
@@ -317,6 +325,8 @@ export default function EmployeeDetailPage({
   const [screenCapturesTotal, setScreenCapturesTotal] = useState(0)
   const [screenCapturesLoading, setScreenCapturesLoading] = useState(false)
   const [capturesPage, setCapturesPage] = useState(1)
+  const [selectedCaptureIndex, setSelectedCaptureIndex] = useState(-1)
+  const [captureZoom, setCaptureZoom] = useState(1)
   const screenCapturesEmployeeRef = useRef(null)
   const redirectAwayRef = useRef(false)
 
@@ -454,6 +464,50 @@ export default function EmployeeDetailPage({
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [employeeId])
+
+  useEffect(() => {
+    if (tab !== 4) {
+      setSelectedCaptureIndex(-1)
+      setCaptureZoom(1)
+    }
+  }, [tab])
+
+  useEffect(() => {
+    setSelectedCaptureIndex(-1)
+    setCaptureZoom(1)
+  }, [capturesPage])
+
+  const selectedCapture = useMemo(
+    () => (selectedCaptureIndex >= 0 && selectedCaptureIndex < screenCaptures.length ? screenCaptures[selectedCaptureIndex] : null),
+    [selectedCaptureIndex, screenCaptures],
+  )
+
+  const selectedCaptureSrc = useMemo(() => {
+    if (!selectedCapture) return ''
+    return selectedCapture.fullImageUrl || selectedCapture.imageUrl || selectedCapture.dataUrl || ''
+  }, [selectedCapture])
+
+  async function handleDownloadSelectedCapture() {
+    if (!selectedCaptureSrc) return
+    const stampRaw = String(selectedCapture?.capturedAt || '').replace(/[^\d]/g, '').slice(0, 14)
+    const stamp = stampRaw || Date.now()
+    const fileName = `capture-display-${Number(selectedCapture?.displayIndex ?? 0) + 1}-${stamp}.png`
+    try {
+      const response = await fetch(selectedCaptureSrc)
+      if (!response.ok) throw new Error('Download failed')
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      window.open(selectedCaptureSrc, '_blank', 'noopener,noreferrer')
+    }
+  }
 
   const handleBack = () => {
     if (typeof onBack === 'function') onBack()
@@ -870,6 +924,12 @@ export default function EmployeeDetailPage({
                         sx={{
                           ...CAPTURE_IMAGE_AREA_SX,
                           objectFit: 'cover',
+                          cursor: 'zoom-in',
+                        }}
+                        onClick={() => {
+                          const idx = screenCaptures.findIndex((x) => String(x.id) === String(item.id))
+                          setSelectedCaptureIndex(idx)
+                          setCaptureZoom(1)
                         }}
                       />
                       <Box sx={CAPTURE_CARD_FOOTER_SX}>
@@ -906,6 +966,220 @@ export default function EmployeeDetailPage({
           )}
         </Card>
       )}
+
+      <Dialog
+        open={Boolean(selectedCapture)}
+        onClose={() => {
+          setSelectedCaptureIndex(-1)
+          setCaptureZoom(1)
+        }}
+        maxWidth="xl"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: '#0f172a',
+            borderRadius: '16px',
+            overflow: 'hidden',
+            border: '1px solid rgba(148,163,184,0.25)',
+          },
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: { xs: 'stretch', sm: 'center' },
+            justifyContent: 'space-between',
+            flexDirection: { xs: 'column', sm: 'row' },
+            px: { xs: 1.25, sm: 1.5 },
+            py: 1.1,
+            borderBottom: '1px solid rgba(148,163,184,0.18)',
+            gap: { xs: 0.9, sm: 1.2 },
+            bgcolor: 'rgba(15,23,42,0.95)',
+          }}
+        >
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={0.65}
+            sx={{
+              flex: 1,
+              p: 0.45,
+              pr: 0.7,
+              borderRadius: '10px',
+              bgcolor: 'rgba(148,163,184,0.10)',
+              border: '1px solid rgba(148,163,184,0.2)',
+              maxWidth: 'max-content',
+            }}
+            style={{ alignItems: 'center'}}
+          >
+            <IconButton
+              size="small"
+              sx={{
+                color: '#cbd5e1',
+                bgcolor: 'rgba(15,23,42,0.45)',
+                '&:hover': { bgcolor: 'rgba(148,163,184,0.16)' },
+                '&.Mui-disabled': {
+                  color: 'rgba(148,163,184,0.45)',
+                  bgcolor: 'rgba(15,23,42,0.2)',
+                  border: '1px solid rgba(148,163,184,0.16)',
+                  opacity: 1,
+                },
+              }}
+              aria-label="Previous capture"
+              disabled={selectedCaptureIndex <= 0}
+              onClick={() => {
+                setSelectedCaptureIndex((prev) => Math.max(0, prev - 1))
+                setCaptureZoom(1)
+              }}
+            >
+              <ChevronLeftIcon fontSize="small" />
+            </IconButton>
+            <Typography
+              sx={{
+                color: '#e2e8f0',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                textAlign: 'center',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: { xs: 180, sm: 320, md: 440 },
+              }}
+            >
+              {selectedCapture
+                ? `Display ${Number(selectedCapture.displayIndex ?? 0) + 1} · ${formatCaptureWhen(selectedCapture.capturedAt)}`
+                : 'Capture preview'}
+            </Typography>
+            <Typography
+              sx={{
+                color: '#94a3b8',
+                fontWeight: 700,
+                fontSize: '0.72rem',
+                ml: 0.35,
+                px: 0.7,
+                py: 0.2,
+                borderRadius: '999px',
+                bgcolor: 'rgba(15,23,42,0.45)',
+                border: '1px solid rgba(148,163,184,0.25)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {selectedCaptureIndex + 1}/{screenCaptures.length}
+            </Typography>
+            <IconButton
+              size="small"
+              sx={{
+                color: '#cbd5e1',
+                bgcolor: 'rgba(15,23,42,0.45)',
+                '&:hover': { bgcolor: 'rgba(148,163,184,0.16)' },
+                '&.Mui-disabled': {
+                  color: 'rgba(148,163,184,0.45)',
+                  bgcolor: 'rgba(15,23,42,0.2)',
+                  border: '1px solid rgba(148,163,184,0.16)',
+                  opacity: 1,
+                },
+              }}
+              aria-label="Next capture"
+              disabled={selectedCaptureIndex < 0 || selectedCaptureIndex >= screenCaptures.length - 1}
+              onClick={() => {
+                setSelectedCaptureIndex((prev) => Math.min(screenCaptures.length - 1, prev + 1))
+                setCaptureZoom(1)
+              }}
+            >
+              <ChevronRightIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={0.35}
+            sx={{
+              justifyContent: 'center',
+              alignSelf: { xs: 'center', sm: 'auto' },
+              p: 0.4,
+              borderRadius: '10px',
+              bgcolor: 'rgba(148,163,184,0.10)',
+              border: '1px solid rgba(148,163,184,0.2)',
+            }}
+            style={{alignItems: 'center'}}
+          >
+            <IconButton
+              size="small"
+              sx={{ color: '#cbd5e1', '&:hover': { bgcolor: 'rgba(148,163,184,0.18)' } }}
+              aria-label="Zoom out"
+              onClick={() => setCaptureZoom((z) => Math.max(0.5, Math.round((z - 0.1) * 10) / 10))}
+            >
+              <ZoomOutIcon fontSize="small" />
+            </IconButton>
+            <Typography
+              sx={{
+                color: '#cbd5e1',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                minWidth: 46,
+                textAlign: 'center',
+                px: 0.45,
+                py: 0.3,
+                borderRadius: '7px',
+                bgcolor: 'rgba(15,23,42,0.45)',
+                border: '1px solid rgba(148,163,184,0.24)',
+              }}
+              style={{textAlign: 'center'}}
+            >
+              {Math.round(captureZoom * 100)}%
+            </Typography>
+            <IconButton
+              size="small"
+              sx={{ color: '#cbd5e1', '&:hover': { bgcolor: 'rgba(148,163,184,0.18)' } }}
+              aria-label="Zoom in"
+              onClick={() => setCaptureZoom((z) => Math.min(3, Math.round((z + 0.1) * 10) / 10))}
+            >
+              <ZoomInIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              sx={{ color: '#93c5fd', '&:hover': { bgcolor: 'rgba(59,130,246,0.18)' } }}
+              aria-label="Download image"
+              onClick={() => {
+                void handleDownloadSelectedCapture()
+              }}
+            >
+              <DownloadIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              onClick={() => {
+                setSelectedCaptureIndex(-1)
+                setCaptureZoom(1)
+              }}
+              size="small"
+              sx={{ color: '#fca5a5', '&:hover': { bgcolor: 'rgba(239,68,68,0.2)' } }}
+              aria-label="Close preview"
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        </Box>
+        <Box sx={{ p: 1.5, bgcolor: '#0b1020', display: 'flex', justifyContent: 'center', overflow: 'auto' }}>
+          {selectedCapture ? (
+            <Box
+              component="img"
+              src={selectedCaptureSrc}
+              alt={`Desktop capture preview at ${formatCaptureWhen(selectedCapture.capturedAt)}`}
+              sx={{
+                width: 'auto',
+                maxWidth: '100%',
+                maxHeight: '78vh',
+                objectFit: 'contain',
+                borderRadius: '10px',
+                bgcolor: '#111827',
+                transform: `scale(${captureZoom})`,
+                transformOrigin: 'center center',
+                transition: 'transform 0.15s ease',
+              }}
+            />
+          ) : null}
+        </Box>
+      </Dialog>
     </Box>
   )
 }

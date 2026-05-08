@@ -117,6 +117,8 @@ const DETAIL_TEXT = '#e2e8f0'
 const DETAIL_MUTED = '#94a3b8'
 
 const COLUMN_WIP_MAX = 5
+const PRIORITY_ORDER = ['low', 'medium', 'high']
+const STATUS_ORDER = ['backlog', 'ready', 'in progress', 'in review']
 
 const COLUMNS = [
   {
@@ -1049,6 +1051,29 @@ export default function TasksPage({
     updateDescriptionWithSelection(next, cursor, cursor)
   }
 
+  function cyclePriority() {
+    const current = String(form.priority || 'medium').toLowerCase()
+    const idx = PRIORITY_ORDER.indexOf(current)
+    const next = PRIORITY_ORDER[(idx + 1 + PRIORITY_ORDER.length) % PRIORITY_ORDER.length]
+    setForm((f) => ({ ...f, priority: next }))
+  }
+
+  function cycleStatus() {
+    const current = canonicalStatus(form.status)
+    const idx = STATUS_ORDER.indexOf(current)
+    const next = STATUS_ORDER[(idx + 1 + STATUS_ORDER.length) % STATUS_ORDER.length]
+    setForm((f) => ({ ...f, status: next }))
+  }
+
+  function cycleProject() {
+    const options = Array.isArray(projectOptions) ? projectOptions : []
+    if (options.length === 0) return
+    const current = String(form.project || '').trim().toLowerCase()
+    const idx = options.findIndex((name) => String(name || '').trim().toLowerCase() === current)
+    const next = options[(idx + 1 + options.length) % options.length]
+    setForm((f) => ({ ...f, project: next }))
+  }
+
   async function fileToDataUrl(file) {
     return await new Promise((resolve, reject) => {
       const reader = new FileReader()
@@ -1825,143 +1850,50 @@ export default function TasksPage({
                 size="small"
                 variant="outlined"
                 startIcon={<LabelOutlinedIcon sx={{ fontSize: 18 }} />}
+                onClick={cyclePriority}
                 sx={{
                   borderColor: BORDER_INPUT,
-                  color: TEXT_MUTED,
+                  color: priorityAccent(form.priority),
                   textTransform: 'none',
                   fontWeight: 600,
                   borderRadius: '999px',
-                  '&:hover': { borderColor: PRIMARY, bgcolor: PRIMARY_SOFT },
+                  '&:hover': { borderColor: PRIMARY, bgcolor: PRIMARY_SOFT_STRONG },
                 }}
               >
-                Label
+                Label: {String(form.priority || 'medium').replace(/^./, (c) => c.toUpperCase())}
               </Button>
               <Button
                 size="small"
                 variant="outlined"
                 startIcon={<FlagOutlinedIcon sx={{ fontSize: 18 }} />}
+                onClick={cycleStatus}
                 sx={{
                   borderColor: BORDER_INPUT,
                   color: TEXT_MUTED,
                   textTransform: 'none',
                   fontWeight: 600,
                   borderRadius: '999px',
-                  '&:hover': { borderColor: PRIMARY, bgcolor: PRIMARY_SOFT },
+                  '&:hover': { borderColor: PRIMARY, bgcolor: PRIMARY_SOFT_STRONG },
                 }}
               >
-                Type
+                Type: {String(canonicalStatus(form.status || 'backlog')).replace(/\b\w/g, (m) => m.toUpperCase())}
               </Button>
               <Button
                 size="small"
                 variant="outlined"
                 startIcon={<FolderOutlinedIcon sx={{ fontSize: 18 }} />}
+                onClick={cycleProject}
                 sx={{
                   borderColor: BORDER_INPUT,
                   color: TEXT_MUTED,
                   textTransform: 'none',
                   fontWeight: 600,
                   borderRadius: '999px',
-                  '&:hover': { borderColor: PRIMARY, bgcolor: PRIMARY_SOFT },
+                  '&:hover': { borderColor: PRIMARY, bgcolor: PRIMARY_SOFT_STRONG },
                 }}
               >
-                Project
+                Project: {form.project || 'Select'}
               </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<TrackChangesOutlinedIcon sx={{ fontSize: 18 }} />}
-                sx={{
-                  borderColor: BORDER_INPUT,
-                  color: TEXT_MUTED,
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  borderRadius: '999px',
-                  '&:hover': { borderColor: PRIMARY, bgcolor: PRIMARY_SOFT },
-                }}
-              >
-                Milestone
-              </Button>
-            </Stack>
-
-            {projects.length > 0 ? (
-              <Box sx={{ mb: 2.5 }}>
-                <Typography component="label" htmlFor="task-project" sx={formFieldTitleSx}>
-                  Repository / project
-                </Typography>
-                <FormControl fullWidth size="small" sx={{ ...fieldSx }}>
-                  <Select
-                    id="task-project"
-                    value={form.project}
-                    onChange={(e) => setForm((f) => ({ ...f, project: e.target.value }))}
-                    disabled={loadingProjects}
-                    sx={{ color: TEXT_PRIMARY, '& .MuiOutlinedInput-notchedOutline': { borderColor: BORDER_INPUT } }}
-                  >
-                    {projects.map((p) => (
-                      <MenuItem key={p.id} value={p.name} sx={{ bgcolor: DIALOG_BG, color: TEXT_PRIMARY }}>
-                        {p.name}
-                      </MenuItem>
-                    ))}
-                    {form.project && !projects.some((p) => p.name === form.project) && (
-                      <MenuItem value={form.project} sx={{ bgcolor: DIALOG_BG, color: TEXT_PRIMARY }}>{form.project}</MenuItem>
-                    )}
-                  </Select>
-                </FormControl>
-              </Box>
-            ) : (
-              <Box sx={{ mb: 2.5 }}>
-                <Typography component="label" htmlFor="task-project-name" sx={formFieldTitleSx}>
-                  Repository / project
-                </Typography>
-                <TextField
-                  id="task-project-name"
-                  placeholder="Project name"
-                  value={form.project}
-                  onChange={(e) => setForm((f) => ({ ...f, project: e.target.value }))}
-                  fullWidth
-                  size="small"
-                  sx={{ ...fieldSx }}
-                  helperText="Create a project under Projects first, or type a name."
-                  FormHelperTextProps={{ sx: { color: TEXT_MUTED } }}
-                />
-              </Box>
-            )}
-
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.9} sx={{ mb: 0.6 }}>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography component="label" htmlFor="task-priority" sx={formFieldTitleSx}>
-                  Priority
-                </Typography>
-                <FormControl fullWidth size="small" sx={fieldSx}>
-                  <Select
-                    id="task-priority"
-                    value={form.priority}
-                    onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
-                    sx={{ color: TEXT_PRIMARY }}
-                  >
-                    <MenuItem value="low" sx={{ bgcolor: DIALOG_BG, color: TEXT_PRIMARY }}>Low</MenuItem>
-                    <MenuItem value="medium" sx={{ bgcolor: DIALOG_BG, color: TEXT_PRIMARY }}>Medium</MenuItem>
-                    <MenuItem value="high" sx={{ bgcolor: DIALOG_BG, color: TEXT_PRIMARY }}>High</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography component="label" htmlFor="task-column" sx={formFieldTitleSx}>
-                  Column
-                </Typography>
-                <FormControl fullWidth size="small" sx={fieldSx}>
-                  <Select
-                    id="task-column"
-                    value={form.status}
-                    onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                    sx={{ color: TEXT_PRIMARY }}
-                  >
-                    <MenuItem value="backlog" sx={{ bgcolor: DIALOG_BG, color: TEXT_PRIMARY }}>Backlog</MenuItem>
-                    <MenuItem value="ready" sx={{ bgcolor: DIALOG_BG, color: TEXT_PRIMARY }}>Ready</MenuItem>
-                    <MenuItem value="in progress" sx={{ bgcolor: DIALOG_BG, color: TEXT_PRIMARY }}>In progress</MenuItem>
-                    <MenuItem value="in review" sx={{ bgcolor: DIALOG_BG, color: TEXT_PRIMARY }}>In review</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
             </Stack>
 
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mt: 1.35 }}>

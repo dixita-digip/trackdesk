@@ -958,6 +958,10 @@ app.post('/api/tracker/timer/start', async (req, res) => {
     startedAt: timer.startedAt,
     source: timer.source,
   }
+  const taskStatus = String(task.status || '').trim().toLowerCase().replace(/_/g, ' ')
+  if (taskStatus !== 'in progress') {
+    task.status = 'in progress'
+  }
   writeActivity('tracker.timer.started', {
     taskId: task.id,
     title: task.title,
@@ -1204,7 +1208,11 @@ app.get('/api/employees/:employeeId/screen-captures', async (req, res) => {
         capturedAt: row.captured_at,
       }
       if (row.file_url) {
-        return { ...base, imageUrl: cloudinaryListPreviewUrl(row.file_url) }
+        return {
+          ...base,
+          imageUrl: cloudinaryListPreviewUrl(row.file_url),
+          fullImageUrl: row.file_url,
+        }
       }
       if (row.image_base64) {
         return {
