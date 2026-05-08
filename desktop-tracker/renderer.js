@@ -42,6 +42,7 @@ let todaySeconds = 0
 let projectRefreshId = null
 let activeSessionId = null
 let stopTimerSyncPromise = null
+let idleStopPromptVisible = false
 let taskRows = []
 let projectRows = []
 let authUser = null
@@ -57,12 +58,14 @@ function hideTrackerLoading() {
 }
 
 function hideIdleWarningModal() {
+  idleStopPromptVisible = false
   if (idleWarningModal) idleWarningModal.classList.add('hidden')
   if (window.trackerApp?.notifyIdleModalClosed) window.trackerApp.notifyIdleModalClosed()
 }
 
 function showIdleWarningModal(detail) {
   if (!idleWarningModal || !idleWarningMessage) return
+  idleStopPromptVisible = true
   const th = Math.max(1, Math.floor(Number(detail?.thresholdSeconds) || 60))
   let phrase
   if (th < 90) {
@@ -235,6 +238,7 @@ function applyAuthState() {
     hideIdleWarningModal()
     pushTimerRunningForIdle()
   }
+  pushTimerRunningForIdle()
 
   loginBtn.disabled = false
   if (headerLoginBtn) {
@@ -745,6 +749,7 @@ if (typeof window !== 'undefined') {
     }
     if (typeof window.trackerApp?.onIdleOverlayResume === 'function') {
       window.trackerApp.onIdleOverlayResume(async () => {
+        if (!idleStopPromptVisible) return
         if (timerId) return
         await startTimer()
       })
